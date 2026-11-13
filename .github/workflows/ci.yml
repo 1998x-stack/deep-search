@@ -1,0 +1,59 @@
+name: Factory CI
+on:
+  push:
+    branches: ["factory/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Compile Python
+        run: python -m compileall -q factory algorithms tests
+      - name: Unit tests (zero live API calls)
+        run: python -m unittest discover -s tests -v
+      - name: Validate JSON and mirrored Skills
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in [*Path("configs").glob("*.json"), *Path("examples").glob("*.json")]:
+              json.loads(path.read_text(encoding="utf-8"))
+          canonical = Path("SKILL.md").read_text(encoding="utf-8")
+          assert canonical.startswith("---\nname: deep-search-factory\n")
+          for path in (".agents/skills/deep-search-factory/SKILL.md",
+                       ".claude/skills/deep-search-factory/SKILL.md",
+                       ".opencode/skills/deep-search-factory/SKILL.md"):
+              assert Path(path).read_text(encoding="utf-8") == canonical
+          print("JSON and Skill synchronization OK")
+          PY
+      - name: Strict-mode offline smoke
+        run: |
+          python algorithms/strict_research.py \
+            --question "Fictional library test" \
+            --provider mock --llm mock \
+            --fixture examples/offline_fixture.json \
+            --out runs/ci
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out = Path("runs/ci")
+          assert json.loads((out / "audit.json").read_text())["valid"]
+          assert json.loads((out / "run.json").read_text())["status"] == "completed"
+          print("Strict mock research completed")
+          PY
+
