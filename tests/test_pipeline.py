@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 from algorithms.deep_research import main
 from factory.config import ResearchConfig
-from factory.pipeline import run_research
+from factory.pipeline import _context, _model_payload, run_research
 
 FIXTURE = Path(__file__).resolve().parents[1] / "examples/offline_fixture.json"
 
@@ -33,6 +33,56 @@ class PipelineTests(unittest.TestCase):
             report = (Path(tmp) / "report.md").read_text()
             self.assertIn("[S001]", report)
             self.assertIn("[S002]", report)
+
+
+    def test_standard_mode_does_not_complete_with_snippets_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            for collection in fixture["search_results"].values():
+                for source in collection:
+                    source["content"] = ""
+            file = Path(tmp) / "fixture.json"
+            file.write_text(json.dumps(fixture), encoding="utf-8")
+            cfg = ResearchConfig(question="Synthetic excerpt-only claim",
+                                 out=str(Path(tmp) / "run"), provider="mock",
+                                 llm="mock", fixture=str(file), strict=False)
+            run = run_research(cfg)
+            self.assertEqual(run["status"], "incomplete", run["errors"])
+            audit = json.loads((Path(cfg.out) / "audit.json").read_text())
+            self.assertFalse(audit["readiness"]["ready"])
+            self.assertTrue(audit["errors"])
+
+    def test_standard_mode_does_not_complete_empty_claim_ledger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            fixture["responses"]["evidence"] = {"claims": []}
+            file = Path(tmp) / "fixture.json"
+            file.write_text(json.dumps(fixture), encoding="utf-8")
+            cfg = ResearchConfig(question="Synthetic source",
+                                 out=str(Path(tmp) / "run"), provider="mock",
+                                 llm="mock", fixture=str(file), strict=False)
+            run = run_research(cfg)
+            self.assertEqual(run["status"], "incomplete")
+            audit = json.loads((Path(cfg.out) / "audit.json").read_text())
+            self.assertEqual(audit["readiness"]["anchored_claims"], 0)
+
+    def test_total_source_context_budget_and_recency(self):
+        sources = [
+            {"id": f"S{i:03d}", "url": f"https://example.org/{i}",
+             "title": "Research", "snippet": "description",
+             "content": "data " * 3000}
+            for i in range(1, 21)
+        ]
+        context = _context(sources, max_chars=6000, max_total_chars=4000)
+        self.assertLessEqual(len(json.dumps(context, ensure_ascii=False)), 4000)
+        self.assertEqual(context[0]["id"], "S020")
+        self.assertTrue(context[0]["excerpt_truncated"])
+
+    def test_model_payload_explicitly_rejects_oversize_context(self):
+        with self.assertRaisesRegex(ValueError, "max_context_chars"):
+            _model_payload({"body": "x" * 20000}, limit=5000, stage="evidence")
+        self.assertEqual(_model_payload({"ok": True}, limit=5000, stage="test"),
+                         '{"ok": true}')
 
     def test_missing_keys_fails_and_preserves_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:

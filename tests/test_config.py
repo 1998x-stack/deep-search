@@ -26,6 +26,22 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn("secret-fake", serialized)
         self.assertNotIn("google-fake", serialized)
 
+
+    def test_direct_openai_defaults_never_use_deepseek_host(self):
+        cfg = ResearchConfig(question="A test", llm="openai")
+        self.assertEqual(cfg.model, "gpt-6")
+        self.assertEqual(cfg.model_base_url, "https://api.openai.com/v1")
+        legacy = ResearchConfig(question="A test", llm="deepseek")
+        self.assertEqual(legacy.model, "deepseek-flash")
+        self.assertEqual(legacy.model_base_url, "https://api.deepseek.com")
+
+    def test_model_context_budget_validation(self):
+        with self.assertRaises(ValueError):
+            ResearchConfig(question="A test", max_context_chars=4096)
+        with self.assertRaises(ValueError):
+            ResearchConfig(question="A test", max_context_chars=200000)
+        self.assertEqual(ResearchConfig(question="A test").max_context_chars, 48000)
+
     def test_unmarked_fixture_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             file = Path(tmp) / "fixture.json"
