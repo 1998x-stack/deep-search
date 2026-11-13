@@ -2,7 +2,7 @@
 
 Evidence-first deep research, implemented with a CleanRL-inspired **explicit algorithm script** and small **provider factories**. This branch began from an empty file tree; its initial empty-tree commit still has main as a parent, so Git history is not orphaned.
 
-[中文](README.zh.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Skill](SKILL.md)
+[中文](README.zh.md) | [Reflection Loop](docs/REFLECTION.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Skill](SKILL.md)
 
 ## Running
 
@@ -17,11 +17,19 @@ python algorithms/deep_research.py --question "Synthetic library opening" --prov
 
 For a one-request-per-provider connectivity check, run `python scripts/live_smoke.py --live` after supplying credentials (this is not an accuracy test).
 
-For live use provide `DEEPSEEK_API_KEY`, `GOOGLE_API_KEY` and `GOOGLE_CSE_ID` in the execution environment. Model defaults to `deepseek-flash` (DeepSeek V4.1 Flash 1017).
+For a live DeepSeek+Google run, provide `DEEPSEEK_API_KEY`, `GOOGLE_API_KEY` and `GOOGLE_CSE_ID`. To use OpenAI set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` (default `gpt-6`; API access varies by account). The OpenAI adapter calls the **Responses API** rather than replaying DeepSeek's request protocol. Browser search is a separate optional Playwright provider; no Google API key is required for that provider.
 
 ~~~bash
 python algorithms/deep_research.py --question "Research topic" --provider google --llm deepseek --fetch-pages --out runs/live
 python algorithms/strict_research.py --question "Research topic" --provider google --llm deepseek --fetch-pages --out runs/strict
+
+# Optional browser provider (install Chromium once)
+pip install -e '.[browser]'
+python -m playwright install chromium
+python algorithms/deep_research.py --question "Research topic" --provider playwright --browser-engine bing --llm openai --fetch-pages --out runs/openai-browser
+
+# Reflection controller options
+python algorithms/deep_research.py --question "Research topic" --provider google --llm deepseek --reflection-patience 2 --reflection-similarity-threshold 0.92 --out runs/reflection
 ~~~
 
 ## Design
@@ -29,21 +37,22 @@ python algorithms/strict_research.py --question "Research topic" --provider goog
 ```mermaid
 flowchart TD
     A[CLI + settings] --> B[Provider factories]
-    B --> C[DeepSeek]
-    B --> D[Google CSE]
+    B --> C[DeepSeek / OpenAI Responses]
+    B --> D[Google CSE / Playwright]
     C --> E[Plan / Evidence / Critic]
     D --> F[Sources + optional fetch]
     E --> F
     F --> G[Claim Evidence Ledger]
-    G --> H{Gap and budget?}
-    H -->|Yes| D
-    H -->|No| I[Synthesis and audit]
-    I --> J[Artifacts and deviations]
+    G --> H[Reflection: metrics + Critic]
+    H --> I{Novel query, progress and budget?}
+    I -->|Yes| D
+    I -->|No| J[Synthesis and audit]
+    J --> K[Artifacts, reflection and deviations]
 ```
 
-Each run writes real attempt logs, capabilities, sources, claims, critique, report, audit and a sanitized config. Offline fixtures are synthetic, not proof of real events. Full-text quote matching is a structural check; it does not certify factual entailment.
+Each run writes real attempt logs, capabilities, sources, claims, critique, **reflection.json with deterministic stop reasons**, report, audit and a sanitized config. Offline fixtures are synthetic, not proof of real events. Full-text quote matching is a structural check; it does not certify factual entailment.
 
-**Known limits:** Google Custom Search JSON API is unavailable to new customers and existing customers must transition by 2027-01-01. The optional HTML fetcher is not DNS-IP-pinned and must not be hosted as a public arbitrary-URL service. Live API integration is not verified by offline CI.
+**Known limits:** Browser search can be blocked by search engines and must respect applicable terms; Playwright is never used to bypass CAPTCHA. Model/search API integration is not verified by offline CI. Google Custom Search JSON API is unavailable to new customers and existing customers must transition by 2027-01-01. The optional HTML fetcher is not DNS-IP-pinned and must not be hosted as a public arbitrary-URL service. Live API integration is not verified by offline CI.
 
 ### References
 

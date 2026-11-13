@@ -4,11 +4,11 @@
 | --- | --- | --- |
 | Config | factory/config.py, configs/*.json | limits, seeds, runtime parameters |
 | Capabilities | factory/capabilities.py | explicit available/missing/manual capability state |
-| Model factory | factory/models.py | DeepSeek chat completions / mock |
-| Search factory | factory/search.py | Google Custom Search JSON API / mock |
+| Model factory | factory/models.py, factory/openai_model.py | DeepSeek Chat Completions, OpenAI Responses, mock |
+| Search factory | factory/search.py, factory/playwright_search.py | Google CSE, Playwright browser, mock |
 | Fetch | factory/fetch.py | opt-in, bounded public HTML retrieval |
 | Evidence | factory/evidence.py | source provenance, dedup, quotation audit |
-| Research | factory/prompts.py, factory/pipeline.py | planning, research, critique, reflection, synthesis |
+| Research | factory/prompts.py, factory/pipeline.py, factory/reflection.py | planning, deterministic observe/decide loop, critique and synthesis |
 | Entrypoints | algorithms/*.py | explicit CleanRL-style loops and CLI |
 | QA | tests/, benchmarks/offline_eval.py, .github/workflows/ci.yml | deterministic tests / synthetic benchmarks without live billing |
 | Runtime output | runs/ | plan, search, sources, ledger, report, audit, deviations |

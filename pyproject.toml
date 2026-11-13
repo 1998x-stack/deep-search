@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deep-search-factory"
-version = "0.2.0"
+version = "0.3.0"
 description = "CleanRL-style evidence-first deep research factory"
 requires-python = ">=3.10"
 dependencies = []
 license = "MIT"
+
+[project.optional-dependencies]
+browser = ["playwright>=1.55,<2"]
 
 [project.scripts]
 deep-search-factory = "algorithms.deep_research:main"
