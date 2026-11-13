@@ -10,6 +10,8 @@ Implement a reusable, auditable research Skill. Never make a tool, test, README 
 - Python engine: `deep_search/`, standard-library-first.
 - CLI wrappers: `scripts/`, thin delegates only.
 - JSON contracts: `schemas/`.
+- Portable full-flow orchestrator: `prompts/deep-search-master.md` (<= 4,000 Unicode characters). Keep it self-contained and make root `SKILL.md` link to it.
+- Role-level material: `prompts/{planner,researcher,evidence-reviewer,critic,synthesizer}.md`, loaded on demand.
 - Research practice: `references/` and `prompts/`.
 - Unit tests: `tests/`; curated evaluation inputs: `evals/`.
 
@@ -19,7 +21,8 @@ Implement a reusable, auditable research Skill. Never make a tool, test, README 
 2. `python -m unittest discover -s tests -v`
 3. Validate all `schemas/*.json`, `examples/*.json` and `evals/*.json`.
 4. Ensure skill mirrors equal root `SKILL.md`.
-5. For network changes test private address, credentials, redirect and oversized response handling without external network access.
+5. Run `python scripts/validate_master_prompt.py` to verify master prompt length, phases, Mermaid, variables, evidence states and host Skill entrypoint linking.
+6. For network changes test private address, credentials, redirect and oversized response handling without external network access.
 
 ## Security and boundaries
 

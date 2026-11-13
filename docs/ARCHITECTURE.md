@@ -1,5 +1,9 @@
 # Architecture and engineering decisions
 
+## 0. Portable orchestration prompt
+
+The canonical, copyable end-to-end research instruction is [Master Prompt v1.1](../prompts/deep-search-master.md), intentionally under 4,000 Unicode characters; see [design rationale](PROMPT-DESIGN.md). The root `SKILL.md` and its three host mirrors are discovery/operational contracts and load the master on end-to-end investigations. Role prompts remain optional extensions. This separation avoids duplicating huge instructions in every host wrapper.
+
 ## 1. Scope
 
 Two cooperating layers: an **agent-facing skill** (non-deterministic question selection, adversarial reading, synthesis) and a **reproducible CLI** (query budget enforcement, bounded fetch, deduplication, provenance integrity, report-reference checks). This is not a continuously autonomous deep research platform.
