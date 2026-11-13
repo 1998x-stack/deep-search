@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 DEPTH_ROUNDS = {"quick": 1, "standard": 2, "deep": 3}
 
@@ -48,8 +49,12 @@ class ResearchConfig:
             raise ValueError("retries out of range (0–4)")
         if (self.provider == "mock" or self.llm == "mock") and not self.fixture:
             raise ValueError("mock provider requires --fixture")
-        if self.llm == "deepseek" and not self.model_base_url.startswith("https://"):
-            raise ValueError("live model base URL must use HTTPS")
+        base = urlsplit(self.model_base_url)
+        if self.llm == "deepseek" and (
+            base.scheme != "https" or not base.hostname or base.username
+            or base.password or base.query or base.fragment
+        ):
+            raise ValueError("live model base URL must be credential-free HTTPS")
 
     def sanitized(self) -> dict:
         result = asdict(self)

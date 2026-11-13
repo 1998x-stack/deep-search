@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import ResearchConfig, classify_intent
+from .capabilities import resolve_capabilities
 from .evidence import add_sources, audit, normalize_claims
 from .fetch import FetchError, fetch_text
 from .models import create_model
@@ -81,6 +82,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
     # Write a sanitized manifest first, even if credential initialization fails.
     _save(root, "config.json", cfg.sanitized())
+    manifest["capabilities"] = resolve_capabilities(cfg)
+    _save(root, "capabilities.json", manifest["capabilities"])
     # Reset reports to avoid stale results when a reused output folder fails.
     _save(root, "report.md", "# Research incomplete\n\nNo validated report was produced.\n")
     try:

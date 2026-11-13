@@ -3,6 +3,7 @@
 | Layer | Files | Responsibility |
 | --- | --- | --- |
 | Config | factory/config.py, configs/*.json | limits, seeds, runtime parameters |
+| Capabilities | factory/capabilities.py | explicit available/missing/manual capability state |
 | Model factory | factory/models.py | DeepSeek chat completions / mock |
 | Search factory | factory/search.py | Google Custom Search JSON API / mock |
 | Fetch | factory/fetch.py | opt-in, bounded public HTML retrieval |

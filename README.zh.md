@@ -29,5 +29,7 @@ python algorithms/deep_research.py --question "研究主题" \
 
 Google Custom Search JSON API 面临 2027-01-01 迁移截止，因此搜索接口单独封装。引用匹配、来源数、LLM 输出均不自动证明事实真实；未获取原文的搜索摘要也不能冒充原始证据。
 
-阅读 [设计文档](docs/ARCHITECTURE.md)、[运行手册](docs/OPERATIONS.md)。
+联网连接测试：设置好环境变量后显式运行 `python scripts/live_smoke.py --live`（仅检查接口形态，不检验事实准确性）。运行时能力清单写入 `capabilities.json`。
+
+阅读 [设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[运行手册](docs/OPERATIONS.md)。
 
