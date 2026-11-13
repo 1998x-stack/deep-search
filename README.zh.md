@@ -2,6 +2,14 @@
 
 这是一个面向 **Codex / Claude Code / OpenCode** 的可复用研究能力包，同时包含 Python 3.10+ 工具链。它的原则是 **先追溯证据，再形成结论**：检索结果、引用存在、事实真实是三个不同的问题。
 
+## 总控 Prompt（直接复制或通过 Skill 加载）
+
+**[Deep Search Master Prompt v1.1](prompts/deep-search-master.md)** 是经过精简和结构化的完整研究指令，共 3,137 个 Unicode 字符，符合此前 **4000 字以内** 的要求。包含 Planner、Researcher、Evidence Reviewer、Critic、Synthesizer 五项逻辑职责、七阶段迭代、Mermaid 流程图和明确的终止/审计规则。
+
+直接打开文件复制到 ChatGPT、Claude 等对话，设置 `{{research_topic}}`；其余可选变量有 `{{as_of_date}}`、`{{scope}}`、`{{depth}}`（quick / standard / deep）、`{{output_language}}`、`{{constraints}}`。如果在本仓库的 Codex / Claude Code / OpenCode 环境运行，`SKILL.md` 会引导使用主 Prompt，按需加载专业子模块。
+
+详细拆解见 [Prompt 设计](docs/PROMPT-DESIGN.md) 和 [角色 Prompt 使用说明](prompts/README.md)。**研究模板不是自动事实认证**；研究结论仍需要真实原文、交叉验证及人工/Agent 语义判断。
+
 ## 工作流
 
 **明确问题 → 初步规划 → 多轮检索 → 阅读原文 → 去重与溯源 → Claim–Evidence 台账 → 反例搜索 → 综合分析 → 报告审计。**

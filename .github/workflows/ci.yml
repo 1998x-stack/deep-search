@@ -25,6 +25,8 @@ jobs:
         run: python -m compileall -q deep_search scripts tests
       - name: Offline unit tests
         run: python -m unittest discover -s tests -v
+      - name: Validate portable master research prompt
+        run: python scripts/validate_master_prompt.py
       - name: Validate JSON files and canonical skills
         run: |
           python - <<'PY'

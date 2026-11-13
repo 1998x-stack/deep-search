@@ -2,9 +2,26 @@
 
 **Evidence-first, auditable deep research for Codex, Claude Code, OpenCode and Python.**
 
-[简体中文](README.zh.md) · [Architecture](docs/ARCHITECTURE.md) · [Skill](SKILL.md) · [Methodology](references/research-methodology.md)
+[简体中文](README.zh.md) · **[Master Prompt](prompts/deep-search-master.md)** · [Architecture](docs/ARCHITECTURE.md) · [Skill](SKILL.md) · [Methodology](references/research-methodology.md)
 
 > Research software must distinguish retrieving a quotation from verifying the claim it allegedly supports.
+
+## Portable master prompt
+
+The **[Master Research Prompt v1.1](prompts/deep-search-master.md)** is the single, copyable orchestration prompt (3,137 Unicode characters) combining Planner → Researcher → Evidence Reviewer → Critic → Synthesizer across seven phases, with a Mermaid decision loop and a final citation audit. It is suitable for use directly in ChatGPT/Claude or via the repository Skill loaders. It **does not require** a Python installation when used as instructions with the host's own search tools.
+
+Fill in `{{research_topic}}`, optionally set `{{as_of_date}}`, `{{scope}}`, `{{depth}}`, `{{output_language}}`, and `{{constraints}}`. The master prompt gives defaults for all optional variables; do not send raw placeholders to search providers.
+
+```text
+研究主题：调查某项政策从提出到实施的效果，有哪些正反证据？
+时间基准：当前日期
+地区/范围：中国大陆，近十年
+深度：deep
+输出语言：中文
+额外约束：优先一手文件，分别标记事实与推论
+```
+
+Skill entrypoints load the master prompt first for end-to-end work, then optionally load specialized [role prompts](prompts/README.md). For design constraints and verification levels see [Prompt design](docs/PROMPT-DESIGN.md).
 
 ## Why this project exists
 

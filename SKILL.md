@@ -10,6 +10,10 @@ license: MIT
 
 Find the most defensible answer, **not** the answer most consistent with the question's premise. Explicitly distinguish FACT, INFERENCE, HYPOTHESIS and UNKNOWN. The host agent performs interpretation; deterministic scripts only manage provenance and integrity.
 
+## Master prompt — end-to-end entrypoint
+
+For a complete investigation, **load `prompts/deep-search-master.md` first** and use it as the concise orchestration prompt. It defines inputs, five logical roles, seven phases, evidence-state vocabulary, bounded re-search and final quality gates. This `SKILL.md` is the host discovery/operational contract; specialist prompts in `prompts/` provide deeper phase-specific guidance **only when necessary**, not a mandatory bundle. The master prompt is standalone when copied outside this repository. It does not grant extra tools or make the Python CLI an autonomous fact-checker.
+
 ## Research workflow
 
 1. **Frame.** Identify the central question, geography, time period, disputed premises, intended audience and decision stakes. If not essential, proceed with explicit assumptions rather than blocking.
@@ -39,6 +43,7 @@ Find the most defensible answer, **not** the answer most consistent with the que
 
 ## Supporting material (paths relative to repository root)
 
+- `prompts/deep-search-master.md` — portable master prompt (under 4,000 Unicode characters)
 - `prompts/` — planner, researcher, evidence-reviewer, critic, synthesizer
 - `references/` — methodology, query expansion, source ranking, verification, contradiction, report format
 - `schemas/` — research plan, evidence ledger, report contract
