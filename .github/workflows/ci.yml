@@ -31,7 +31,13 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          for path in [*Path("configs").glob("*.json"), *Path("examples").glob("*.json")]:
+          globs = [
+              *Path("configs").glob("*.json"),
+              *Path("configs").glob("**/*.json"),
+              *Path("examples").glob("*.json"),
+              *Path("fixtures").glob("*.json"),
+          ]
+          for path in globs:
               json.loads(path.read_text(encoding="utf-8"))
           canonical = Path("SKILL.md").read_text(encoding="utf-8")
           assert canonical.startswith("---\nname: deep-search-factory\n")
@@ -56,7 +62,15 @@ jobs:
           out = Path("runs/ci")
           assert json.loads((out / "audit.json").read_text())["valid"]
           assert json.loads((out / "run.json").read_text())["status"] == "completed"
-          print("Strict mock research completed")
+          # Run-scoped loguru artifacts must exist and be machine-parsable.
+          records = [json.loads(line) for line in
+                     (out / "logs/run.jsonl").read_text(encoding="utf-8").splitlines() if line]
+          assert records, "run.jsonl is empty"
+          assert all(rec["record"]["extra"]["run_id"] != "-" for rec in records)
+          stages = {rec["record"]["extra"]["stage"] for rec in records}
+          assert {"init", "planning", "search", "evidence", "audit", "summary"} <= stages, stages
+          assert (out / "logs/run.log").stat().st_size > 0
+          print("Strict mock research completed with run logs")
           PY
 
 

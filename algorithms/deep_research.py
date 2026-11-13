@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from factory.config import ResearchConfig
+from factory.logging_setup import LOG_LEVELS
 from factory.pipeline import run_research
 
 DEFAULTS = ROOT / "configs/default.json"
@@ -38,11 +39,13 @@ def parser_for(argv: list[str] | None = None):
     p.add_argument("--config", default=preliminary_args.config, help="JSON default configuration")
     p.add_argument("--question", required=True, help="Research question")
     p.add_argument("--out", default="runs/latest", help="Local artifact directory")
-    p.add_argument("--provider", choices=["google", "playwright", "mock"], default=defaults["search_provider"])
-    p.add_argument("--llm", choices=["deepseek", "openai", "mock"], default=defaults["llm_provider"])
+    p.add_argument("--provider", choices=["google", "playwright", "replay", "mock"], default=defaults["search_provider"])
+    p.add_argument("--llm", choices=["deepseek", "openai", "iagent", "mock"], default=defaults["llm_provider"])
     p.add_argument("--depth", choices=["quick", "standard", "deep"], default=defaults["depth"])
     p.add_argument("--model", default=None, help="Model name, defaults by provider")
     p.add_argument("--model-base-url", default=None, help="HTTPS provider API base")
+    p.add_argument("--llm-thinking", action=argparse.BooleanOptionalAction, default=False,
+                   help="Allow provider reasoning tokens (iagent: off by default)")
     p.add_argument("--browser-engine", choices=["bing", "duckduckgo"],
                    default=defaults.get("browser_engine", "bing"))
     p.add_argument("--reflection-patience", type=int,
@@ -63,7 +66,14 @@ def parser_for(argv: list[str] | None = None):
     p.add_argument("--timeout-seconds", type=int, default=defaults["timeout_seconds"])
     p.add_argument("--retries", type=int, default=defaults["retries"])
     p.add_argument("--seed", type=int, default=defaults["seed"])
+    p.add_argument("--log-level", choices=list(LOG_LEVELS), default=defaults.get("log_level", "INFO"))
+    p.add_argument("--log-json", action=argparse.BooleanOptionalAction,
+                   default=defaults.get("log_json", True), help="Write logs/run.jsonl")
+    p.add_argument("--log-console", action=argparse.BooleanOptionalAction,
+                   default=defaults.get("log_console", True), help="Mirror logs to stderr")
     p.add_argument("--fixture", help="Required for mock provider; explicitly synthetic JSON")
+    p.add_argument("--search-fixture", default=defaults.get("search_fixture"),
+                   help="Real discovery list for --provider replay (provenance required)")
     return p
 
 
@@ -79,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         "status": result["status"], "rounds": result["rounds"],
         "queries_executed": result["queries_executed"],
         "artifacts": cfg.out, "errors": result["errors"],
+        "log_dir": (result.get("logging") or {}).get("log_dir"),
+        "llm_usage": result.get("llm_usage"),
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return {"completed": 0, "incomplete": 1, "failed": 2}.get(result["status"], 2)
