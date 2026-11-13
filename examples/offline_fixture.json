@@ -4,8 +4,13 @@
   "responses": {
     "planner": {
       "scope": "Fictional town, invented example",
-      "hypotheses": ["The library opened in 2020", "The 2019 opening date is false"],
-      "queries": ["fictional library official notice", "fictional library correction"]
+      "hypotheses": [
+        "The library opened in 2020",
+        "The 2019 opening date is false"
+      ],
+      "queries": [
+        "fictional library official notice"
+      ]
     },
     "evidence": [
       {
@@ -44,8 +49,12 @@
     "critic": [
       {
         "stop": false,
-        "next_queries": ["fictional library correction"],
-        "gaps": ["Check whether 2019 date was a mistake"],
+        "next_queries": [
+          "fictional library correction"
+        ],
+        "gaps": [
+          "Check whether 2019 date was a mistake"
+        ],
         "contradictions": [],
         "rationale": "Fictional correction provides an alternative account"
       },
@@ -80,4 +89,3 @@
     ]
   }
 }
-

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "profiles": {
+    "quick": {
+      "max_rounds": 1,
+      "max_queries": 4
+    },
+    "standard": {
+      "max_rounds": 2,
+      "max_queries": 6
+    },
+    "deep": {
+      "max_rounds": 3,
+      "max_queries": 12
+    },
+    "strict": {
+      "requires_citations": true,
+      "requires_anchored_claim": true,
+      "fail_on_search_errors": true
+    }
+  },
+  "note": "Depth chooses round cap unless --max-rounds is supplied; max_queries remains a hard explicit CLI limit."
+}

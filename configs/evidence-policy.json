@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "statuses": [
+    "supported",
+    "partially_supported",
+    "disputed",
+    "unverified",
+    "refuted"
+  ],
+  "polarity": [
+    "supports",
+    "contradicts",
+    "context"
+  ],
+  "supported_requires": "anchored quote in retrieved source full text",
+  "independence": "manual review; URL count is insufficient",
+  "snippet_policy": "discovery only",
+  "claim_validation": "structural quote matching does not prove entailment"
+}

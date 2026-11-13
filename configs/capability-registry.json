@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "capabilities": [
+    {
+      "name": "llm_reasoning",
+      "primary": "deepseek",
+      "mock": "mock",
+      "required": true
+    },
+    {
+      "name": "broad_web_search",
+      "primary": "google",
+      "mock": "mock",
+      "required": true
+    },
+    {
+      "name": "full_text_fetch",
+      "primary": "bounded_html_fetcher",
+      "required": false,
+      "enabled_by": "fetch_pages"
+    },
+    {
+      "name": "evidence_ledger",
+      "primary": "local_structural_audit",
+      "required": true
+    },
+    {
+      "name": "independent_source_verification",
+      "primary": "human_agent_review",
+      "required": false,
+      "automated": false
+    }
+  ]
+}

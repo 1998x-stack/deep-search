@@ -4,7 +4,7 @@
   "model": "deepseek-flash",
   "search_provider": "google",
   "llm_provider": "deepseek",
-  "max_rounds": 2,
+  "max_rounds": null,
   "max_queries": 8,
   "max_sources": 24,
   "results_per_query": 5,
@@ -16,4 +16,3 @@
   "seed": 42,
   "strict": false
 }
-
