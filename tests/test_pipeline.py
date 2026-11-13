@@ -83,6 +83,9 @@ class PipelineTests(unittest.TestCase):
             _model_payload({"body": "x" * 20000}, limit=5000, stage="evidence")
         self.assertEqual(_model_payload({"ok": True}, limit=5000, stage="test"),
                          '{"ok": true}')
+        with self.assertRaisesRegex(ValueError, "max_context_chars"):
+            _model_payload({"ok": True}, limit=25, stage="test",
+                           instructions="prefix " * 10)
 
     def test_missing_keys_fails_and_preserves_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:

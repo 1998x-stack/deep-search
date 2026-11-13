@@ -66,6 +66,8 @@ class ResearchConfig:
             value = getattr(self, key)
             if not 1 <= value <= upper:
                 raise ValueError(f"{key} out of range (1–{upper})")
+        if self.llm == "openai" and self.max_output_tokens < 16:
+            raise ValueError("OpenAI max_output_tokens must be at least 16")
         if not 5_000 <= self.max_context_chars <= 160_000:
             raise ValueError("max_context_chars must be 5000–160000")
         if not 0 <= self.retries <= 4:

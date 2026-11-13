@@ -41,6 +41,8 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ResearchConfig(question="A test", max_context_chars=200000)
         self.assertEqual(ResearchConfig(question="A test").max_context_chars, 48000)
+        with self.assertRaisesRegex(ValueError, "at least 16"):
+            ResearchConfig(question="A test", llm="openai", max_output_tokens=1)
 
     def test_unmarked_fixture_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
