@@ -158,7 +158,10 @@ def audit(ledger: dict, report: str) -> dict:
             if source is None:
                 errors.append("unknown evidence source in " + c["id"])
                 continue
-            if e.get("anchored") and (not source.get("content") or fold(e.get("quote", "")) not in fold(source["content"])):
+            if e.get("anchored") and (
+                not str(e.get("quote", "")).strip() or not source.get("content")
+                or fold(e.get("quote", "")) not in fold(source["content"])
+            ):
                 errors.append("incorrect anchored passage for " + c["id"])
             if e.get("anchored") and e.get("polarity") == "supports":
                 valid_support += 1
@@ -184,4 +187,50 @@ def audit(ledger: dict, report: str) -> dict:
             "sources": len(sources), "claims": len(claims),
             "anchored_support_claims": sum(
                 c["status"] == "supported" for c in claims)}
+
+def assess_research_readiness(ledger: dict, report: str) -> dict:
+    """Separate research completeness from structural citation validity.
+
+    A report with only search snippets, an empty claim ledger or unsupported
+    invented claims is NOT a completed investigation. This remains a mechanical
+    gate, not a certification of semantic factuality.
+    """
+    sources = {s["id"]: s for s in ledger.get("sources", [])}
+    qualifying_sources = set()
+    anchored_claims = 0
+    for claim in ledger.get("claims", []):
+        status = claim.get("status")
+        support = set()
+        contradict = set()
+        for item in claim.get("evidence", []):
+            source = sources.get(item.get("source_id"))
+            quote = str(item.get("quote", "")).strip()
+            if (not item.get("anchored") or not source or not quote
+                    or not source.get("content")
+                    or fold(quote) not in fold(source["content"])):
+                continue
+            if item.get("polarity") == "supports":
+                support.add(source["id"])
+            if item.get("polarity") == "contradicts":
+                contradict.add(source["id"])
+        if ((status in {"supported", "partially_supported"} and support)
+                or (status == "disputed" and support and contradict)
+                or (status == "refuted" and contradict)):
+            anchored_claims += 1
+            qualifying_sources.update(support | contradict)
+
+    body = report.split("\n## Sources\n", 1)[0]
+    cited = {sid for sid in qualifying_sources if "[" + sid + "]" in body}
+    errors = []
+    if not anchored_claims:
+        errors.append("no status-appropriate claim anchored to retrieved full text")
+    if anchored_claims and not cited:
+        errors.append("report has no citation to an anchored claim source")
+    return {
+        "ready": not errors,
+        "errors": errors,
+        "anchored_claims": anchored_claims,
+        "cited_anchored_sources": len(cited),
+        "factual_accuracy_tested": False,
+    }
 

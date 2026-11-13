@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import ResearchConfig, classify_intent
 from .capabilities import resolve_capabilities
-from .evidence import add_sources, audit, normalize_claims
+from .evidence import add_sources, assess_research_readiness, audit, normalize_claims
 from .fetch import FetchError, fetch_text
 from .models import create_model
 from .prompts import CRITIC, EVIDENCE, PLANNER, SYNTHESIS
@@ -312,6 +312,10 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
         # Phase 7: Structural audit; strict requires a minimally supported cited claim.
         report_audit = audit({"sources": sources, "claims": claims}, report)
+        readiness = assess_research_readiness(
+            {"sources": sources, "claims": claims}, report)
+        report_audit["readiness"] = readiness
+        report_audit["errors"].extend(readiness["errors"])
         if cfg.strict:
             if report_audit["anchored_support_claims"] < 1:
                 report_audit["errors"].append("strict mode requires anchored supporting evidence")
@@ -322,6 +326,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             if any("uncited supported claim" in w for w in report_audit["warnings"]):
                 report_audit["errors"].append("strict mode requires body citations for supported claims")
             report_audit["valid"] = not report_audit["errors"]
+        # Apply readiness in non-Strict mode too; otherwise excerpt-only
+        # research could incorrectly report success.
+        report_audit["valid"] = not report_audit["errors"]
         _save(root, "audit.json", report_audit)
         manifest["stages"].append("audited")
         manifest["status"] = "completed" if report_audit["valid"] else "incomplete"
