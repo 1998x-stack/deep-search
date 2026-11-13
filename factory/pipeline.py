@@ -71,10 +71,11 @@ def _context(sources: list[dict], *, max_chars: int = 6000,
     return rows
 
 
-def _model_payload(payload: dict, *, limit: int, stage: str) -> str:
+def _model_payload(payload: dict, *, limit: int, stage: str,
+                   instructions: str = "") -> str:
     """Fail explicitly before a model call rather than silently overspend."""
     serialized = json.dumps(payload, ensure_ascii=False)
-    if len(serialized) > limit:
+    if len(serialized) + len(instructions) > limit:
         raise ValueError(
             stage + " input exceeds max_context_chars; "
             "reduce research scope or increase the configured bounded limit"
@@ -139,7 +140,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             "planner", PLANNER,
             _model_payload({"question": cfg.question, "depth": cfg.depth,
                             "intent": intent, "query_budget": cfg.max_queries},
-                           limit=cfg.max_context_chars, stage="planner"),
+                           limit=cfg.max_context_chars, stage="planner",
+                           instructions=PLANNER),
             json_mode=True)
         if not isinstance(raw_plan, dict) or not isinstance(raw_plan.get("queries"), list):
             raise ValueError("planner must return a JSON object with queries array")
@@ -235,7 +237,7 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             raw_evidence = llm.ask(
                 "evidence", EVIDENCE,
                 _model_payload(evidence_input, limit=cfg.max_context_chars,
-                               stage="evidence"),
+                               stage="evidence", instructions=EVIDENCE),
                 json_mode=True)
             claims, evidence_deviations = normalize_claims(raw_evidence, sources, claims)
             deviations.extend(evidence_deviations)
@@ -260,7 +262,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                     "claims": claims, "metrics": asdict(observation),
                     "attempted_queries": sorted(attempted_queries),
                     "budget": plan["budget"], "previous_reflection": reflection_log[-2:],
-                }, limit=cfg.max_context_chars, stage="critic"),
+                }, limit=cfg.max_context_chars, stage="critic",
+                   instructions=CRITIC),
                 json_mode=True,
             )
             if not isinstance(critique, dict):
@@ -302,7 +305,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                             "critic": critique_log, "reflection": reflection_log,
                             "stop_reason": manifest["stop_reason"],
                             "deviations": deviations},
-                           limit=cfg.max_context_chars, stage="synthesis"),
+                           limit=cfg.max_context_chars, stage="synthesis",
+                           instructions=SYNTHESIS),
             json_mode=False)
         if not isinstance(draft, str) or not draft.strip():
             raise ValueError("synthesis returned an empty report")
