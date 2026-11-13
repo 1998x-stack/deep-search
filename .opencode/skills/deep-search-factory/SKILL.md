@@ -1,6 +1,6 @@
 ---
 name: deep-search-factory
-description: Run evidence-first deep research with explicit DeepSeek and Google providers, multi-round source checking, adversarial reflection, reproducible artifacts and strict citation auditing. Trigger for deep investigations, fact checking and source triangulation.
+description: Run evidence-first deep research with explicit DeepSeek/OpenAI and Google/Playwright providers, multi-round source checking, adversarial reflection, reproducible artifacts and strict citation auditing. Trigger for deep investigations, fact checking and source triangulation.
 license: MIT
 ---
 
@@ -15,13 +15,15 @@ Read `prompts/master.md` for the full planning → search → evidence → criti
 ## Workflow
 
 1. Review user question, scope and current date. Treat the premise as a hypothesis.
-2. Check installed dependencies and available provider credentials without printing secrets. Default DeepSeek model: `deepseek-flash`; Google: Programmable Search JSON API.
+2. Check installed dependencies and available provider credentials without printing secrets. Default DeepSeek model: `deepseek-flash`; OpenAI uses Responses API and `OPENAI_API_KEY`; Google uses Programmable Search JSON API, Playwright uses a locally installed Chromium browser.
 3. Use `python algorithms/deep_research.py --question "..." --provider google --llm deepseek --depth deep --fetch-pages --out runs/<safe-slug>` when services are configured.
 4. Use `python algorithms/strict_research.py` for mandatory cited evidence with stricter gates; do not bypass failures.
-5. If no provider credentials exist, use the documented synthetic mock demo **only to test code**, not as real research.
-6. Inspect all artifacts: plan, search, sources, ledger, critic, report, audit, deviations and run summary.
-7. Review the actual retrieved source text, dates, independence, important counterevidence and unsupported claims. Quote matching is not factual verification.
-8. Draft final answer with source citations and explicit UNKNOWNs. Explain missing access, provider limitations and failed checks.
+5. For browser-backed search install `pip install -e '.[browser]'` and `python -m playwright install chromium`, then select `--provider playwright --browser-engine bing`; never bypass site challenges. For OpenAI choose `--llm openai` with `OPENAI_API_KEY`.
+6. Review `reflection.json`: each round must contain observed evidence progress, Critic proposals, approved novel queries, budgets and deterministic stop reason.
+7. If no provider credentials exist, use the documented synthetic mock demo **only to test code**, not as real research.
+8. Inspect all artifacts: plan, search, sources, ledger, critic, report, audit, deviations and run summary.
+9. Review the actual retrieved source text, dates, independence, important counterevidence and unsupported claims. Quote matching is not factual verification.
+10. Draft final answer with source citations and explicit UNKNOWNs. Explain missing access, provider limitations and failed checks.
 
 ## Non-negotiable rules
 
@@ -37,6 +39,8 @@ Respect copyrights, privacy and legal access controls.
 
 - `docs/ARCHITECTURE.md`: code category map, decision flow and provenance boundaries.
 - `docs/OPERATIONS.md`: execution, artifacts and API configuration.
+- `docs/REFLECTION.md`: deterministic Reflection Loop policy, metrics and stop conditions.
+- `docs/ARCHITECTURE-V03.md`: provider and search architecture.
 - `factory/prompts.py`: five logical agent phases.
 - `tests/`: offline reproducibility checks.
 - `benchmarks/offline_eval.py`: fixed synthetic structural evaluation; no factual-accuracy claims.

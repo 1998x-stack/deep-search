@@ -90,5 +90,8 @@ def create_search(cfg: ResearchConfig, fixture: dict | None = None):
         return MockSearch(fixture or {})
     if cfg.provider == "google":
         return GoogleSearch(cfg)
+    if cfg.provider == "playwright":
+        from .playwright_search import PlaywrightSearch
+        return PlaywrightSearch(cfg)
     raise SearchError("Unsupported search provider")
 

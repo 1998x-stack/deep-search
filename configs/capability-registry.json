@@ -5,13 +5,23 @@
       "name": "llm_reasoning",
       "primary": "deepseek",
       "mock": "mock",
-      "required": true
+      "required": true,
+      "providers": [
+        "deepseek",
+        "openai",
+        "mock"
+      ]
     },
     {
       "name": "broad_web_search",
       "primary": "google",
       "mock": "mock",
-      "required": true
+      "required": true,
+      "providers": [
+        "google",
+        "playwright",
+        "mock"
+      ]
     },
     {
       "name": "full_text_fetch",

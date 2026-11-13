@@ -15,6 +15,27 @@ Verified against provider documentation as of 2026-11-13. Provider changes may r
 
 Reference: https://api-docs.deepseek.com/api/create-chat-completion/
 
+## OpenAI Responses API
+
+- Select with `--llm openai` and set `OPENAI_API_KEY`.
+- Default `OPENAI_MODEL=gpt-6`; model access depends on API account. Custom HTTPS endpoint: `OPENAI_BASE_URL`, default `https://api.openai.com/v1`.
+- `POST /responses` accepts `instructions`, `input`, `model`, `max_output_tokens`, `store=false`.
+- For Planner, Evidence and Critic use strict `text.format.type=json_schema` with explicit field contracts from `factory/response_schemas.py`; other JSON-mode stages use `json_object`. Inspect `status=completed` and extract `output[].content[]` items with `type=output_text`.
+- Only completed model responses are trusted as successfully returned output; JSON and schema validity are checked by the downstream pipeline.
+- This project does not assume that all accounts can invoke `gpt-6`. Model and token budget are explicit options.
+
+Official reference: https://developers.openai.com/api/reference/resources/responses/methods/create
+
+## Playwright browser search
+
+- `--provider playwright --browser-engine bing` (or `duckduckgo`).
+- Install optional dependencies: `pip install -e '.[browser]'` and `python -m playwright install chromium`.
+- Chromium uses isolated, non-persistent contexts and fixed HTTPS search pages with restricted requests; no authentication, CAPTCHA circumvention or stealth.
+- Result pages yield titles, target URLs and snippets only. As with CSE, they are not verified full-text sources.
+- Some engines may disallow automated search or change HTML; respect terms and fail rather than bypass challenges.
+
+Official reference: https://playwright.dev/python/docs/intro
+
 ## Google Custom Search JSON API
 
 - Endpoint: `GET https://customsearch.googleapis.com/customsearch/v1`.

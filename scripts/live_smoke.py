@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Manual paid-provider connectivity check. Does NOT test factual accuracy.
+"""Explicit opt-in connectivity smoke for selected live model/search providers.
 
-One DeepSeek JSON request and one Google CSE search request. No keys logged.
+This performs one paid model call and one external search. No credentials logged.
+No browser challenges, CAPTCHA solving or source-content verification are attempted.
 """
 from __future__ import annotations
-
+import argparse
 import json
 import os
 import sys
@@ -15,42 +16,62 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from factory.config import ResearchConfig
-from factory.models import DeepSeekModel
-from factory.search import GoogleSearch
+from factory.models import create_model
+from factory.search import create_search
 
 
 def main(argv=None) -> int:
-    args = list(sys.argv[1:] if argv is None else argv)
-    if args != ["--live"]:
-        print("Explicit opt-in required: python scripts/live_smoke.py --live", file=sys.stderr)
+    parser = argparse.ArgumentParser(description="Manual paid API/browser smoke, not an accuracy test")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument("--llm", choices=["deepseek", "openai"], default="deepseek")
+    parser.add_argument("--provider", choices=["google", "playwright"], default="google")
+    parser.add_argument("--browser-engine", choices=["bing", "duckduckgo"], default="bing")
+    args = parser.parse_args(argv)
+    if not args.live:
+        print("Requires --live: this makes real provider requests", file=sys.stderr)
         return 2
-    missing = [v for v in ("DEEPSEEK_API_KEY", "GOOGLE_API_KEY", "GOOGLE_CSE_ID")
-               if not os.getenv(v)]
+    needed = ["OPENAI_API_KEY" if args.llm == "openai" else "DEEPSEEK_API_KEY"]
+    if args.provider == "google":
+        needed += ["GOOGLE_API_KEY", "GOOGLE_CSE_ID"]
+    missing = [key for key in needed if not os.getenv(key)]
     if missing:
         print("Missing required environment variables: " + ", ".join(missing), file=sys.stderr)
         return 2
-    cfg = ResearchConfig(question="Connectivity smoke test", retries=0,
-                         model=os.getenv("DEEPSEEK_MODEL", "deepseek-flash"),
-                         model_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
+    if args.llm == "openai":
+        model = os.getenv("OPENAI_MODEL", "gpt-6")
+        base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    else:
+        model = os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
+        base = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+    cfg = ResearchConfig(
+        question="Connectivity smoke test", llm=args.llm, provider=args.provider,
+        browser_engine=args.browser_engine, model=model, model_base_url=base,
+        max_output_tokens=800, retries=0,
+    )
     try:
-        model = DeepSeekModel(cfg)
-        out = model.ask("connectivity", "Return JSON object with field ok: true.",
-                        "Return JSON now: {\"ok\": true}", json_mode=True)
-        if out.get("ok") is not True:
-            raise RuntimeError("Model JSON smoke response did not contain ok=true")
-        results = GoogleSearch(cfg).search("Example Domain site:example.org", num=1)
+        llm = create_model(cfg)
+        value = llm.ask(
+            "connectivity", "Output JSON object containing ok=true.",
+            'Return JSON exactly: {"ok": true}', json_mode=True,
+        )
+        if value.get("ok") is not True:
+            raise RuntimeError("LLM returned JSON without ok=true")
+        search = create_search(cfg)
+        results = search.search("Example Domain site:example.org", num=1)
         if not isinstance(results, list):
-            raise RuntimeError("Google response is not a result list")
+            raise RuntimeError("Search provider did not return a list")
         print(json.dumps({
-            "deepseek_json": "pass",
-            "google_request": "pass",
-            "google_results": len(results),
+            "model_provider": args.llm, "model_result": "pass",
+            "search_provider": args.provider,
+            "browser_engine": args.browser_engine if args.provider == "playwright" else None,
+            "search_result_count": len(results),
+            "search_contract": "pass",
             "factual_accuracy_tested": False,
         }))
         return 0
     except Exception as exc:
-        # Provider exceptions are scrubbed of credentials in implementations.
-        print("Live smoke test failed: " + type(exc).__name__ + ": " + str(exc), file=sys.stderr)
+        # Provider exceptions are sanitized by adapters. Do not include raw request URLs.
+        print("Live smoke failed: " + type(exc).__name__ + ": " + str(exc), file=sys.stderr)
         return 1
 
 

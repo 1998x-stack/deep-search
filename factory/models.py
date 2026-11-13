@@ -111,5 +111,8 @@ def create_model(cfg: ResearchConfig, fixture: dict | None = None):
         return MockModel(fixture or {})
     if cfg.llm == "deepseek":
         return DeepSeekModel(cfg)
+    if cfg.llm == "openai":
+        from .openai_model import OpenAIResponsesModel
+        return OpenAIResponsesModel(cfg)
     raise ModelError("Unsupported model provider")
 

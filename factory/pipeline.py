@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-import traceback
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from .evidence import add_sources, audit, normalize_claims
 from .fetch import FetchError, fetch_text
 from .models import create_model
 from .prompts import CRITIC, EVIDENCE, PLANNER, SYNTHESIS
+from .reflection import decide, novel_queries, observe
 from .search import create_search
 
 
@@ -66,13 +67,15 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         "schema_version": "1.0", "question": cfg.question,
         "started_at": _time(), "status": "running", "stages": [],
         "queries_executed": 0, "rounds": 0, "fetches_attempted": 0,
-        "errors": [], "artifacts": [],
+        "errors": [], "artifacts": [], "stop_reason": "not_started",
     }
     deviations: list[str] = []
     sources: list[dict] = []
     claims: list[dict] = []
     search_log: list[dict] = []
     critique_log: list[dict] = []
+    reflection_log: list[dict] = []
+    stalled_rounds = 0
     plan = {}
     report = ""
     report_audit = {"valid": False, "errors": ["research not completed"], "warnings": []}
@@ -117,20 +120,29 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         # Phase 2–5: Search -> retrieve -> claim ledger -> critique -> selective replan.
         for round_number in range(1, cfg.max_rounds + 1):
             if manifest["queries_executed"] >= cfg.max_queries:
+                manifest["stop_reason"] = "query_budget_exhausted"
                 break
             manifest["rounds"] = round_number
-            new_queries = []
-            for query in next_queries:
-                if manifest["queries_executed"] >= cfg.max_queries:
-                    break
-                normalized = query.casefold().strip()
-                if normalized in attempted_queries or not normalized:
-                    continue
-                attempted_queries.add(normalized)
-                new_queries.append(query)
+            # Stage Observation snapshots: only real new data qualifies as progress.
+            prev_source_count = len(sources)
+            prev_full_text_count = sum(bool(s.get("content")) for s in sources)
+            prev_supported_count = sum(
+                c.get("status") == "supported" and any(
+                    e.get("anchored") and e.get("polarity") == "supports"
+                    for e in c.get("evidence", []))
+                for c in claims
+            )
+            new_queries = novel_queries(
+                next_queries, attempted_queries,
+                threshold=cfg.reflection_similarity_threshold,
+                limit=cfg.max_queries - manifest["queries_executed"],
+            )
+            for query in new_queries:
+                attempted_queries.add(query)
 
             if not new_queries:
-                deviations.append("stopped: no new queries with material expected value")
+                manifest["stop_reason"] = "no_novel_queries"
+                deviations.append("stopped: no novel query is available")
                 break
 
             for query in new_queries:
@@ -173,6 +185,7 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             _save(root, "sources.json", sources)
             if not sources:
                 deviations.append("no sources found during search round " + str(round_number))
+                manifest["stop_reason"] = "no_sources"
                 break
 
             # Phase 3: Ask for evidence, but enforce provenance in pure Python.
@@ -186,26 +199,51 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             _save(root, "ledger.json", {"sources": sources, "claims": claims})
             manifest["stages"].append("evidence_round_" + str(round_number))
 
-            # Phase 4–5: Critic proposes the next high-value round.
+
+            # Phase 4–5: measure real progress, then ask Critic for proposals.
             remaining = cfg.max_queries - manifest["queries_executed"]
+            observation = observe(
+                sources, claims, previous_source_count=prev_source_count,
+                previous_full_text_count=prev_full_text_count,
+                previous_anchored_count=prev_supported_count,
+                remaining_queries=remaining,
+                remaining_rounds=cfg.max_rounds - round_number,
+                max_sources=cfg.max_sources,
+            )
             critique = llm.ask(
                 "critic", CRITIC,
-                json.dumps({"question": cfg.question, "round": round_number,
-                            "claims": claims, "remaining_queries": remaining,
-                            "source_count": len(sources)}, ensure_ascii=False),
-                json_mode=True)
+                json.dumps({
+                    "question": cfg.question, "round": round_number,
+                    "claims": claims, "metrics": asdict(observation),
+                    "attempted_queries": sorted(attempted_queries),
+                    "budget": plan["budget"], "previous_reflection": reflection_log[-2:],
+                }, ensure_ascii=False),
+                json_mode=True,
+            )
             if not isinstance(critique, dict):
                 raise ValueError("critic must return JSON object")
+            decision = decide(
+                observation, critique,
+                history=attempted_queries,
+                previous_stalled_rounds=stalled_rounds,
+                patience=cfg.reflection_patience,
+                similarity_threshold=cfg.reflection_similarity_threshold,
+            )
+            stalled_rounds = decision.stalled_rounds
             critique_log.append({"round": round_number, **critique})
+            reflection_log.append({
+                "round": round_number,
+                "observation": asdict(observation),
+                "proposal": critique,
+                "decision": decision.as_dict(),
+            })
             _save(root, "critic.json", critique_log)
-            manifest["stages"].append("critic_round_" + str(round_number))
-            if critique.get("stop") is True or remaining <= 0:
+            _save(root, "reflection.json", reflection_log)
+            manifest["stages"].append("reflection_round_" + str(round_number))
+            if decision.action == "stop":
+                manifest["stop_reason"] = decision.reason
                 break
-            next_queries = [str(q).strip()[:400] for q in critique.get("next_queries", [])
-                            if isinstance(q, str) and q.strip()]
-            if not next_queries:
-                deviations.append("critic requested continuation but provided no queries")
-                break
+            next_queries = list(decision.next_queries)
 
         if not sources:
             raise RuntimeError("No sources retrieved; cannot synthesize a research report")
@@ -215,7 +253,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             "synthesis", SYNTHESIS,
             json.dumps({"question": cfg.question, "plan": plan,
                         "claims": claims, "sources": _context(sources, max_chars=1500),
-                        "critic": critique_log, "deviations": deviations},
+                        "critic": critique_log, "reflection": reflection_log,
+                        "stop_reason": manifest["stop_reason"],
+                        "deviations": deviations},
                        ensure_ascii=False), json_mode=False)
         if not isinstance(draft, str) or not draft.strip():
             raise ValueError("synthesis returned an empty report")
@@ -238,9 +278,12 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         _save(root, "audit.json", report_audit)
         manifest["stages"].append("audited")
         manifest["status"] = "completed" if report_audit["valid"] else "incomplete"
+        if manifest["stop_reason"] == "not_started":
+            manifest["stop_reason"] = "research_loop_completed"
     except Exception as exc:
         # Preserve useful artifacts without secret-bearing stacktraces.
         manifest["status"] = "failed"
+        manifest["stop_reason"] = "execution_failed"
         manifest["errors"].append(type(exc).__name__ + ": " + str(exc)[:300])
         deviations.append("execution stopped in stage: " + type(exc).__name__)
         if not report:
@@ -251,7 +294,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         for filename, value in (
             ("plan.json", plan), ("search.json", search_log),
             ("sources.json", sources), ("ledger.json", {"sources": sources, "claims": claims}),
-            ("critic.json", critique_log), ("audit.json", report_audit),
+            ("critic.json", critique_log), ("reflection.json", reflection_log),
+            ("audit.json", report_audit),
             ("deviations.json", {"deviations": deviations}),
         ):
             _save(root, filename, value)
