@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "depth": "deep",
+  "model": "deepseek-flash",
+  "search_provider": "google",
+  "llm_provider": "deepseek",
+  "max_rounds": 2,
+  "max_queries": 8,
+  "max_sources": 24,
+  "results_per_query": 5,
+  "max_fetch": 8,
+  "fetch_pages": false,
+  "max_output_tokens": 1800,
+  "timeout_seconds": 20,
+  "retries": 2,
+  "seed": 42,
+  "strict": false
+}
+

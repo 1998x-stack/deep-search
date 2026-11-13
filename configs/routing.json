@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "default": {"intent": "general", "search_styles": ["primary", "counterevidence"]},
+  "routes": [
+    {"intent": "academic", "keywords": ["论文", "研究", "arxiv", "paper"], "search_styles": ["primary", "replication", "counterevidence"]},
+    {"intent": "legal", "keywords": ["法", "法规", "判决", "regulation"], "search_styles": ["primary", "jurisdiction", "counterevidence"]},
+    {"intent": "technical", "keywords": ["代码", "API", "github", "framework"], "search_styles": ["documentation", "repository", "counterevidence"]},
+    {"intent": "market", "keywords": ["公司", "行业", "市场", "revenue"], "search_styles": ["filing", "statistics", "counterevidence"]}
+  ]
+}
+

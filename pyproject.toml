@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deep-search-factory"
+version = "0.2.0"
+description = "CleanRL-style evidence-first deep research factory"
+requires-python = ">=3.10"
+dependencies = []
+license = "MIT"
+
+[project.scripts]
+deep-search-factory = "algorithms.deep_research:main"
+
+[tool.setuptools.packages.find]
+include = ["factory*", "algorithms*"]
+
