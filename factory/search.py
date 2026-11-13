@@ -8,6 +8,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from .config import ResearchConfig
+from .logging_setup import logger
 
 SEARCH_ENDPOINT = "https://customsearch.googleapis.com/customsearch/v1"
 RETRYABLE = {408, 429, 500, 502, 503, 504}
@@ -35,6 +36,9 @@ class GoogleSearch:
                             "num": num, "safe": "active"})
         request = Request(SEARCH_ENDPOINT + "?" + params,
                           headers={"Accept": "application/json", "User-Agent": "DeepSearchFactory/0.2"})
+        logger.bind(stage="search").debug(
+            "google cse request num={} endpoint={} (query-string credentials omitted)",
+            num, SEARCH_ENDPOINT)
         for attempt in range(self.cfg.retries + 1):
             try:
                 with urlopen(request, timeout=self.cfg.timeout_seconds) as response:
@@ -59,6 +63,7 @@ class GoogleSearch:
                     })
                 return results
             except HTTPError as exc:
+                logger.bind(stage="search").warning("google cse HTTP {}", exc.code)
                 if exc.code in RETRYABLE and attempt < self.cfg.retries:
                     time.sleep(min(2 ** attempt, 4))
                     continue
@@ -85,7 +90,7 @@ class MockSearch:
         return [dict(item, provider="synthetic_mock") for item in matches[:num]]
 
 
-def create_search(cfg: ResearchConfig, fixture: dict | None = None):
+def create_search(cfg: ResearchConfig, fixture: dict | None = None, *, search_fixture: str | None = None):
     if cfg.provider == "mock":
         return MockSearch(fixture or {})
     if cfg.provider == "google":
@@ -93,5 +98,11 @@ def create_search(cfg: ResearchConfig, fixture: dict | None = None):
     if cfg.provider == "playwright":
         from .playwright_search import PlaywrightSearch
         return PlaywrightSearch(cfg)
+    if cfg.provider == "replay":
+        from .replay_search import create_replay_search
+        path = search_fixture or cfg.search_fixture
+        if not path:
+            raise SearchError("replay provider requires a discovery list path")
+        return create_replay_search(cfg, path)
     raise SearchError("Unsupported search provider")
 

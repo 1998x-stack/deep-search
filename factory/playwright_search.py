@@ -9,17 +9,25 @@ import ipaddress
 from urllib.parse import parse_qs, unquote, urlencode, urljoin, urlsplit
 
 from .config import ResearchConfig
+from .logging_setup import logger, safe_url
 from .search import SearchError
+
+
+ENGINE_LOG_LABEL = {"bing": "bing", "duckduckgo": "duckduckgo"}
 
 
 ENGINES = {
     "bing": {
         "url": "https://www.bing.com/search",
-        "params": {"count": "10"},
+        # mkt/setlang keep the regional market explicit; without them this host
+        # receives dictionary-style results instead of web results. Parameters
+        # only shape an ordinary search request; no challenge is bypassed.
+        "params": {"count": "10", "mkt": "zh-CN", "setlang": "zh-hans"},
         "cards": "li.b_algo",
         "anchor": "h2 a",
         "snippet": ".b_caption p",
         "hosts": ("bing.com",),
+        "settle_ms": 800,
     },
     "duckduckgo": {
         "url": "https://duckduckgo.com/",
@@ -28,8 +36,31 @@ ENGINES = {
         "anchor": "h2 a",
         "snippet": "[data-result='snippet'], [data-testid='result-extras'], p",
         "hosts": ("duckduckgo.com", "duckduckgostatic.com"),
+        "settle_ms": 1200,
     },
 }
+
+# Browser search engines can silently return degraded (dictionary/redirect)
+# pages for CJK queries without an explicit market. These are reported, not
+# worked around with stealth techniques.
+DEGRADED_HOSTS = ("zdic.net", "baike.baidu.com", "dict.youdao.com", "iciba.com",
+                  "cambridge.org", "merriam-webster.com", "collinsdictionary.com")
+
+
+def _settle(page, settings: dict) -> None:
+    """Best-effort DOM settle; never fail the search because of timing APIs."""
+    waiter = getattr(page, "wait_for_selector", None)
+    if callable(waiter):
+        try:
+            waiter(settings["cards"], timeout=8_000)
+        except Exception:
+            pass
+    sleeper = getattr(page, "wait_for_timeout", None)
+    if callable(sleeper):
+        try:
+            sleeper(settings.get("settle_ms", 500))
+        except Exception:
+            pass
 
 
 def allowed_host(host: str, domains: tuple[str, ...]) -> bool:
@@ -94,6 +125,9 @@ class PlaywrightSearch:
         target = settings["url"] + "?" + urlencode(params)
         context = None
         browser = None
+        logger.bind(stage="search").info(
+            "playwright search start engine={} host={} num={} headless=true",
+            self.cfg.browser_engine, safe_url(settings["url"]), num)
         try:
             with self._load_factory()() as playwright:
                 browser = playwright.chromium.launch(headless=True)
@@ -117,21 +151,29 @@ class PlaywrightSearch:
                 context.route("**/*", restrict_requests)
                 page = context.new_page()
                 response = page.goto(
-                    target, wait_until="domcontentloaded",
+                    target, wait_until="load",
                     timeout=self.cfg.timeout_seconds * 1000,
                 )
                 if response is None or response.status >= 400:
                     raise SearchError("browser search returned a non-success HTTP status")
+                logger.bind(stage="search").debug(
+                    "playwright loaded {} status={}",
+                    safe_url(target), getattr(response, "status", None))
+                _settle(page, settings)
                 text = page.content().lower()[:150000]
                 if any(word in text for word in (
                     "verify you are human", "unusual traffic",
                     "<title>captcha", 'id="captcha"',
                 )):
+                    logger.bind(stage="search").warning(
+                        "playwright search blocked by verification challenge (reported, not bypassed)")
                     raise SearchError("browser search blocked by verification challenge")
                 cards = page.locator(settings["cards"])
+                total_cards = cards.count()
                 results = []
                 seen = set()
-                for index in range(min(cards.count(), num * 3, 30)):
+                degraded = 0
+                for index in range(min(total_cards, num * 3, 30)):
                     card = cards.nth(index)
                     links = card.locator(settings["anchor"])
                     if not links.count():
@@ -154,6 +196,9 @@ class PlaywrightSearch:
                     except Exception:
                         snippet = ""
                     seen.add(href)
+                    if any(allowed_host(urlsplit(href).hostname or "", (host,))
+                           for host in DEGRADED_HOSTS):
+                        degraded += 1
                     results.append({
                         "url": href,
                         "title": title[:500],
@@ -164,12 +209,23 @@ class PlaywrightSearch:
                     })
                     if len(results) >= num:
                         break
+                if degraded >= max(2, len(results)):
+                    logger.bind(stage="search").warning(
+                        "playwright search appears degraded: {}/{} results are dictionary "
+                        "pages for engine={} (market parameters did not help)",
+                        degraded, len(results), self.cfg.browser_engine)
+                logger.bind(stage="search").info(
+                    "playwright search done engine={} cards={} results={} degraded={}",
+                    self.cfg.browser_engine, total_cards, len(results), degraded)
                 return results
         except SearchError:
             raise
         except Exception as exc:
             # Playwright errors can include query/URL or browser internals:
             # deliberately do not stringify them in a user-visible exception.
+            logger.bind(stage="search").warning(
+                "playwright search failed engine={} error={}",
+                self.cfg.browser_engine, type(exc).__name__)
             raise SearchError("Playwright browser search failed (" + type(exc).__name__ + ")") from None
         finally:
             if context is not None:

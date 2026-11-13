@@ -15,10 +15,27 @@ from .config import ResearchConfig, classify_intent
 from .capabilities import resolve_capabilities
 from .evidence import add_sources, assess_research_readiness, audit, normalize_claims
 from .fetch import FetchError, fetch_text
+from .logging_setup import (configure_for_run, logger, log_run_summary, safe_url,
+                            stage, timed)
 from .models import create_model
 from .prompts import CRITIC, EVIDENCE, PLANNER, SYNTHESIS
 from .reflection import decide, novel_queries, observe
 from .search import create_search
+
+
+USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens", "reasoning_tokens")
+
+
+def _usage_delta(llm, before: dict) -> dict:
+    totals = getattr(llm, "usage_totals", None)
+    if not isinstance(totals, dict):
+        return {}
+    return {key: int(totals.get(key, 0)) - int(before.get(key, 0)) for key in USAGE_KEYS}
+
+
+def _usage_snapshot(llm) -> dict:
+    totals = getattr(llm, "usage_totals", None)
+    return {key: int(totals.get(key, 0)) for key in USAGE_KEYS} if isinstance(totals, dict) else {}
 
 
 def _time() -> str:
@@ -102,11 +119,21 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
     random.seed(cfg.seed)
     root = Path(cfg.out)
     root.mkdir(parents=True, exist_ok=True)
+    started_at = _time()
+    run_id = ("run-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+              + "-" + hashlib.sha256(f"{cfg.question}{started_at}".encode()).hexdigest()[:6])
+    logging_state: dict = {}
+    try:
+        logging_state = configure_for_run(cfg, run_id)
+        logging_state["log_dir"] = "logs" if logging_state.get("log_dir") else None
+    except Exception as exc:  # logging must never abort a run
+        logging_state = {"error": type(exc).__name__}
     manifest = {
-        "schema_version": "1.0", "question": cfg.question,
-        "started_at": _time(), "status": "running", "stages": [],
+        "schema_version": "1.0", "question": cfg.question, "run_id": run_id,
+        "started_at": started_at, "status": "running", "stages": [],
         "queries_executed": 0, "rounds": 0, "fetches_attempted": 0,
         "errors": [], "artifacts": [], "stop_reason": "not_started",
+        "logging": logging_state, "llm_usage": {},
     }
     deviations: list[str] = []
     sources: list[dict] = []
@@ -131,18 +158,38 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
     try:
         fixture = cfg.load_fixture(cfg.fixture) if cfg.fixture else None
         llm = model if model is not None else create_model(cfg, fixture)
-        web = search if search is not None else create_search(cfg, fixture)
+        web = search if search is not None else create_search(cfg, fixture,
+                                                              search_fixture=cfg.search_fixture)
+        if cfg.provider == "replay":
+            manifest["discovery_mode"] = "operator_imported"
+            manifest["discovery_provenance"] = dict(getattr(web, "provenance", {}) or {})
+            _save(root, "discovery.json", manifest["discovery_provenance"])
         manifest["stages"].append("providers_initialized")
         intent = classify_intent(cfg.question)
+        logger.bind(stage="init").info(
+            "run started: llm={} model={} search={} depth={} strict={} fetch_pages={} intent={}",
+            cfg.llm, cfg.model, cfg.provider, cfg.depth, cfg.strict, cfg.fetch_pages, intent)
+        logger.bind(stage="init").info(
+            "capabilities: {}",
+            ", ".join(f"{c['name']}={c['status']}" for c in manifest["capabilities"]))
+        if cfg.llm == "iagent":
+            resolved = getattr(llm, "resolved", None)
+            logger.bind(stage="init").info(
+                "iagent config: {}",
+                resolved.describe() if resolved is not None else {"model": cfg.model,
+                                                                 "base_url": safe_url(cfg.model_base_url)})
 
         # Phase 1: Plan (no fabricated fallback queries if model fails).
-        raw_plan = llm.ask(
-            "planner", PLANNER,
-            _model_payload({"question": cfg.question, "depth": cfg.depth,
-                            "intent": intent, "query_budget": cfg.max_queries},
-                           limit=cfg.max_context_chars, stage="planner",
-                           instructions=PLANNER),
-            json_mode=True)
+        with stage("planning", round=0, phase="planner"):
+            before_usage = _usage_snapshot(llm)
+            raw_plan = llm.ask(
+                "planner", PLANNER,
+                _model_payload({"question": cfg.question, "depth": cfg.depth,
+                                "intent": intent, "query_budget": cfg.max_queries},
+                               limit=cfg.max_context_chars, stage="planner",
+                               instructions=PLANNER),
+                json_mode=True)
+            logger.bind(stage="planning").debug("planner usage={}", _usage_delta(llm, before_usage))
         if not isinstance(raw_plan, dict) or not isinstance(raw_plan.get("queries"), list):
             raise ValueError("planner must return a JSON object with queries array")
         first_queries = [str(q).strip()[:400] for q in raw_plan["queries"]
@@ -156,6 +203,11 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                            "sources": cfg.max_sources, "fetches": cfg.max_fetch}}
         _save(root, "plan.json", plan)
         manifest["stages"].append("planned")
+        logger.bind(stage="planning").info(
+            "plan ready: {} queries, {} hypotheses, intent={}",
+            len(plan["queries"]), len(plan["hypotheses"] or []), intent)
+        for query in plan["queries"]:
+            logger.bind(stage="planning").debug("planned query: {}", query)
         next_queries = plan["queries"]
 
         # Phase 2–5: Search -> retrieve -> claim ledger -> critique -> selective replan.
@@ -190,19 +242,26 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                 if manifest["queries_executed"] >= cfg.max_queries:
                     break
                 manifest["queries_executed"] += 1
-                try:
-                    hits = web.search(query, num=cfg.results_per_query)
-                    if not isinstance(hits, list):
-                        raise ValueError("search provider did not return a list")
-                    n = add_sources(sources, hits, max_sources=cfg.max_sources)
-                    search_log.append({
-                        "round": round_number, "query": query,
-                        "hits": len(hits), "new_sources": n, "status": "ok"})
-                except Exception as exc:
-                    # Provider exception strings are intentionally token-free.
-                    search_log.append({"round": round_number, "query": query,
-                                       "hits": 0, "status": "failed", "error": str(exc)})
-                    deviations.append("search failed: " + type(exc).__name__)
+                with timed("search", provider=cfg.provider) as clock:
+                    try:
+                        hits = web.search(query, num=cfg.results_per_query)
+                        if not isinstance(hits, list):
+                            raise ValueError("search provider did not return a list")
+                        n = add_sources(sources, hits, max_sources=cfg.max_sources)
+                        search_log.append({
+                            "round": round_number, "query": query,
+                            "hits": len(hits), "new_sources": n, "status": "ok"})
+                        logger.bind(stage="search", round=round_number).info(
+                            "search ok round={} provider={} hits={} new_sources={} duration_s={} query={}",
+                            round_number, cfg.provider, len(hits), n, clock.seconds, query)
+                    except Exception as exc:
+                        # Provider exception strings are intentionally token-free.
+                        search_log.append({"round": round_number, "query": query,
+                                           "hits": 0, "status": "failed", "error": str(exc)})
+                        deviations.append("search failed: " + type(exc).__name__)
+                        logger.bind(stage="search", round=round_number).warning(
+                            "search failed round={} provider={} error={}: {} query={}",
+                            round_number, cfg.provider, type(exc).__name__, exc, query)
             _save(root, "search.json", search_log)
 
             # Only opt-in full-text fetching. Mock fixture content is already synthetic full text.
@@ -214,16 +273,28 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                         continue
                     fetched_count += 1
                     manifest["fetches_attempted"] = fetched_count
-                    try:
-                        body = fetcher(src["url"], timeout=cfg.timeout_seconds)
-                        src["content"] = body["content"]
-                        src["resolved_url"] = body["url"]
-                        src["content_sha256"] = hashlib.sha256(
-                            src["content"].encode("utf-8")).hexdigest()
-                    except Exception as exc:
-                        src["fetch_error"] = type(exc).__name__
-                        deviations.append("full text fetch failed for " + src["id"])
+                    with timed("fetch", source=src["id"]) as clock:
+                        try:
+                            body = fetcher(src["url"], timeout=cfg.timeout_seconds)
+                            src["content"] = body["content"]
+                            src["resolved_url"] = body["url"]
+                            src["content_sha256"] = hashlib.sha256(
+                                src["content"].encode("utf-8")).hexdigest()
+                            logger.bind(stage="fetch", round=round_number).info(
+                                "fetched {} chars from {} in {}s for {}",
+                                len(src["content"]), safe_url(src["url"]), clock.seconds,
+                                src["id"])
+                        except Exception as exc:
+                            src["fetch_error"] = type(exc).__name__
+                            deviations.append("full text fetch failed for " + src["id"])
+                            logger.bind(stage="fetch", round=round_number).warning(
+                                "fetch failed for {} ({}) error={}: {}", src["id"],
+                                safe_url(src["url"]), type(exc).__name__, exc)
             _save(root, "sources.json", sources)
+            logger.bind(stage="ingest", round=round_number).info(
+                "round {} ingest: sources={} with_full_text={} fetches_attempted={}",
+                round_number, len(sources), sum(bool(s.get("content")) for s in sources),
+                manifest["fetches_attempted"])
             if not sources:
                 deviations.append("no sources found during search round " + str(round_number))
                 manifest["stop_reason"] = "no_sources"
@@ -234,15 +305,30 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                               "sources": _context(
                                   sources, max_total_chars=cfg.max_context_chars // 2),
                               "previous_claims": claims}
-            raw_evidence = llm.ask(
-                "evidence", EVIDENCE,
-                _model_payload(evidence_input, limit=cfg.max_context_chars,
-                               stage="evidence", instructions=EVIDENCE),
-                json_mode=True)
+            with stage("evidence", round=round_number):
+                before_usage = _usage_snapshot(llm)
+                raw_evidence = llm.ask(
+                    "evidence", EVIDENCE,
+                    _model_payload(evidence_input, limit=cfg.max_context_chars,
+                                   stage="evidence", instructions=EVIDENCE),
+                    json_mode=True)
+                logger.bind(stage="evidence", round=round_number).debug(
+                    "evidence usage={}", _usage_delta(llm, before_usage))
             claims, evidence_deviations = normalize_claims(raw_evidence, sources, claims)
             deviations.extend(evidence_deviations)
             _save(root, "ledger.json", {"sources": sources, "claims": claims})
             manifest["stages"].append("evidence_round_" + str(round_number))
+            logger.bind(stage="evidence", round=round_number).info(
+                "ledger round={} claims={} statuses={} anchored_support={} deviations={}",
+                round_number, len(claims),
+                {s: sum(1 for c in claims if c["status"] == s)
+                 for s in ("supported", "partially_supported", "disputed", "refuted", "unverified")
+                 if any(c["status"] == s for c in claims)},
+                sum(1 for c in claims for e in c.get("evidence", [])
+                    if e.get("anchored") and e.get("polarity") == "supports"),
+                len(evidence_deviations))
+            for item in evidence_deviations:
+                logger.bind(stage="evidence", round=round_number).debug("evidence deviation: {}", item)
 
 
             # Phase 4–5: measure real progress, then ask Critic for proposals.
@@ -275,6 +361,11 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                 patience=cfg.reflection_patience,
                 similarity_threshold=cfg.reflection_similarity_threshold,
             )
+            logger.bind(stage="reflection", round=round_number).info(
+                "reflection round={} action={} reason={} proposed={} approved={} gaps={} contradictions={}",
+                round_number, decision.action, decision.reason,
+                len(critique.get("next_queries") or []), len(decision.next_queries),
+                len(critique.get("gaps") or []), len(critique.get("contradictions") or []))
             stalled_rounds = decision.stalled_rounds
             critique_log.append({"round": round_number, **critique})
             reflection_log.append({
@@ -295,24 +386,31 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             raise RuntimeError("No sources retrieved; cannot synthesize a research report")
 
         # Phase 6: Synthesis. It may make inferences, but it cannot add independent facts.
-        draft = llm.ask(
-            "synthesis", SYNTHESIS,
-            _model_payload({"question": cfg.question, "plan": plan,
-                            "claims": claims,
-                            "sources": _context(
-                                sources, max_chars=1500,
-                                max_total_chars=cfg.max_context_chars // 2),
-                            "critic": critique_log, "reflection": reflection_log,
-                            "stop_reason": manifest["stop_reason"],
-                            "deviations": deviations},
-                           limit=cfg.max_context_chars, stage="synthesis",
-                           instructions=SYNTHESIS),
-            json_mode=False)
+        with stage("synthesis", round=manifest["rounds"]):
+            before_usage = _usage_snapshot(llm)
+            draft = llm.ask(
+                "synthesis", SYNTHESIS,
+                _model_payload({"question": cfg.question, "plan": plan,
+                                "claims": claims,
+                                "sources": _context(
+                                    sources, max_chars=1500,
+                                    max_total_chars=cfg.max_context_chars // 2),
+                                "critic": critique_log, "reflection": reflection_log,
+                                "stop_reason": manifest["stop_reason"],
+                                "deviations": deviations},
+                               limit=cfg.max_context_chars, stage="synthesis",
+                               instructions=SYNTHESIS),
+                json_mode=False)
+            logger.bind(stage="synthesis").debug(
+                "synthesis usage={}", _usage_delta(llm, before_usage))
         if not isinstance(draft, str) or not draft.strip():
             raise ValueError("synthesis returned an empty report")
         report = draft.rstrip() + "\n" + _source_index(sources)
         _save(root, "report.md", report)
         manifest["stages"].append("synthesized")
+        logger.bind(stage="synthesis").info(
+            "report drafted: {} chars over {} claims and {} sources",
+            len(draft), len(claims), len(sources))
 
         # Phase 7: Structural audit; strict requires a minimally supported cited claim.
         report_audit = audit({"sources": sources, "claims": claims}, report)
@@ -336,6 +434,13 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         _save(root, "audit.json", report_audit)
         manifest["stages"].append("audited")
         manifest["status"] = "completed" if report_audit["valid"] else "incomplete"
+        logger.bind(stage="audit").info(
+            "audit valid={} errors={} warnings={} readiness={} anchored_support_claims={}",
+            report_audit["valid"], len(report_audit["errors"]),
+            len(report_audit["warnings"]), readiness.get("ready"),
+            report_audit.get("anchored_support_claims"))
+        for problem in report_audit["errors"]:
+            logger.bind(stage="audit").error("audit error: {}", problem)
         if manifest["stop_reason"] == "not_started":
             manifest["stop_reason"] = "research_loop_completed"
     except Exception as exc:
@@ -344,10 +449,13 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         manifest["stop_reason"] = "execution_failed"
         manifest["errors"].append(type(exc).__name__ + ": " + str(exc)[:300])
         deviations.append("execution stopped in stage: " + type(exc).__name__)
+        logger.opt(exception=True).error("research execution failed: {}: {}",
+                                         type(exc).__name__, str(exc)[:300])
         if not report:
             report_audit = {"valid": False, "errors": ["execution failed before report"],
                             "warnings": []}
     finally:
+        manifest["llm_usage"] = _usage_snapshot(locals().get("llm")) or manifest.get("llm_usage", {})
         # Files are created independently, including on early failure.
         for filename, value in (
             ("plan.json", plan), ("search.json", search_log),
@@ -362,6 +470,7 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         manifest["ended_at"] = _time()
         manifest["artifacts"] = sorted(p.name for p in root.iterdir()
                                         if p.is_file() and not p.name.endswith(".tmp"))
+        log_run_summary(manifest)
         _save(root, "run.json", manifest)
     return manifest
 

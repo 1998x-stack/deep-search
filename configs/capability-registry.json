@@ -9,8 +9,10 @@
       "providers": [
         "deepseek",
         "openai",
+        "iagent",
         "mock"
-      ]
+      ],
+      "pi_config_provider": "iagent"
     },
     {
       "name": "broad_web_search",
@@ -21,6 +23,10 @@
         "google",
         "playwright",
         "mock"
+      ],
+      "engines": [
+        "bing",
+        "duckduckgo"
       ]
     },
     {
