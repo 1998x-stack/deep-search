@@ -12,7 +12,7 @@ class CoverageTests(unittest.TestCase):
     def test_segments_cover_every_retrieved_character(self):
         content = "A" * 1000 + "Important evidence." + "B" * 1000
         source = {"id": "S001", "content": content}
-        parts = segments_for_source(source, size=512, overlap=100)
+        parts = segments_for_source(source, size=512, overlap=200)
         self.assertGreater(len(parts), 1)
         self.assertEqual(parts[0]["start"], 0)
         self.assertEqual(parts[-1]["end"], len(content))
