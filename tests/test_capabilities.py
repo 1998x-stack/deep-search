@@ -76,6 +76,15 @@ class CapabilityTests(unittest.TestCase):
         self.assertEqual(named["llm_reasoning"]["status"], "configured")
         self.assertEqual(named["broad_web_search"]["status"], "configured")
 
+    def test_replay_capability_is_fixed_corpus_not_open_web(self):
+        cfg = ResearchConfig(question="test", provider="replay",
+                             search_fixture="fixtures/embodied-intelligence-chain-discovery.json")
+        entry = {item["name"]: item for item in resolve_capabilities(cfg)}["broad_web_search"]
+        self.assertTrue(entry["enabled"])
+        self.assertEqual(entry["status"], "fixed_corpus")
+        self.assertFalse(entry["open_world_discovery"])
+        self.assertEqual(entry["discovery_scope"], "fixed_corpus")
+
     def test_live_smoke_requires_opt_in_and_keys(self):
         self.assertEqual(smoke_main([]), 2)
         with patch.dict(os.environ, {}, clear=True):

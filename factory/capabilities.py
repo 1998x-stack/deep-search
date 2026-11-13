@@ -20,6 +20,7 @@ def resolve_capabilities(cfg: ResearchConfig) -> list[dict]:
         raise ValueError("evidence policy and validator states differ")
     capabilities = []
     for spec in registry["capabilities"]:
+        extra = {}
         name = spec["name"]
         if name == "llm_reasoning":
             provider = cfg.llm
@@ -47,12 +48,18 @@ def resolve_capabilities(cfg: ResearchConfig) -> list[dict]:
                 # Imported discovery lists contain real URLs but are not an
                 # automated search API; the manifest records the provenance.
                 enabled = bool(cfg.search_fixture)
-                status = "configured" if enabled else "missing_discovery_list"
-                extra = {"discovery_mode": "operator_imported"}
+                status = "fixed_corpus" if enabled else "missing_discovery_list"
+                extra = {
+                    "discovery_mode": "operator_imported",
+                    "discovery_scope": "fixed_corpus",
+                    "open_world_discovery": False,
+                }
             else:
                 enabled = cfg.provider == "mock" or (
                     bool(os.getenv("GOOGLE_API_KEY")) and bool(os.getenv("GOOGLE_CSE_ID")))
                 status = "configured" if enabled else "missing_credentials"
+            extra.setdefault("open_world_discovery",
+                             cfg.provider in {"google", "playwright"})
         elif name == "full_text_fetch":
             provider = "bounded_html_fetcher"
             enabled = bool(cfg.fetch_pages)

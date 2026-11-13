@@ -22,7 +22,8 @@
       "providers": [
         "google",
         "playwright",
-        "mock"
+        "mock",
+        "replay"
       ],
       "engines": [
         "bing",
