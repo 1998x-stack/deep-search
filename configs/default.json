@@ -17,5 +17,6 @@
   "strict": false,
   "browser_engine": "bing",
   "reflection_patience": 2,
-  "reflection_similarity_threshold": 0.92
+  "reflection_similarity_threshold": 0.92,
+  "max_context_chars": 48000
 }

@@ -1,5 +1,7 @@
 import unittest
-from factory.evidence import add_sources, audit, canonical_url, normalize_claims
+from factory.evidence import (
+    add_sources, assess_research_readiness, audit, canonical_url, normalize_claims,
+)
 
 
 class EvidenceTests(unittest.TestCase):
@@ -57,6 +59,39 @@ class EvidenceTests(unittest.TestCase):
         ], max_sources=10)
         self.assertEqual(len(src), 1)
         self.assertEqual(src[0]["aliases"][0]["reason"], "exact_content")
+
+
+    def test_empty_anchor_is_not_valid_quote(self):
+        src = [{"id": "S001", "content": "Some actual passage", "url": "https://example.org"}]
+        ledger = {"sources": src, "claims": [{"id": "C001", "text": "claim",
+                  "status": "supported", "evidence": [
+                      {"source_id": "S001", "quote": "", "polarity": "supports", "anchored": True},
+                  ]}]}
+        self.assertFalse(audit(ledger, "Evidence [S001]")["valid"])
+        self.assertFalse(assess_research_readiness(ledger, "Evidence [S001]")["ready"])
+
+    def test_readiness_rejects_empty_ledger_and_bibliography_only(self):
+        src = [{"id": "S001", "url": "https://example.org", "content": "Text about event"}]
+        self.assertFalse(assess_research_readiness({"sources": src, "claims": []},
+                         "Summary.\n## Sources\n[S001]")["ready"])
+        claim = {"id": "C001", "text": "Event", "status": "supported",
+                 "evidence": [{"source_id": "S001", "quote": "about event",
+                               "polarity": "supports", "anchored": True}]}
+        self.assertFalse(assess_research_readiness(
+            {"sources": src, "claims": [claim]},
+            "No actual citations.\n## Sources\n[S001]")["ready"])
+        self.assertTrue(assess_research_readiness(
+            {"sources": src, "claims": [claim]}, "Evidence [S001].")["ready"])
+
+    def test_refuted_claim_can_be_ready_without_positive_support(self):
+        src = [{"id": "S001", "url": "https://example.org", "content": "The date was wrong."}]
+        ledger = {"sources": src, "claims": [{"id": "C001",
+                  "text": "The date was correct", "status": "refuted",
+                  "evidence": [{"source_id": "S001", "quote": "date was wrong",
+                                "polarity": "contradicts", "anchored": True}]}]}
+        check = assess_research_readiness(ledger, "This was refuted [S001].")
+        self.assertTrue(check["ready"])
+        self.assertEqual(check["anchored_claims"], 1)
 
     def test_duplicate_claim(self):
         src = [{"id": "S001", "url": "https://example.org", "content": "X"}]

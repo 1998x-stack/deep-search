@@ -62,3 +62,28 @@ Each run writes real attempt logs, capabilities, sources, claims, critique, **re
 - https://api-docs.deepseek.com/quick_start/pricing/
 - https://developers.google.com/custom-search/v1/overview
 
+
+## Review hardening (2026-11-13)
+
+A successful structural citation check is **not** equivalent to a complete
+research run. Starting with the current review, all modes require:
+
+- At least one claim with status-appropriate quotation evidence anchored to
+  retrieved full-text source material.
+- A citation to an anchored claim source in the **report body** (a bibliography
+  citation alone does not qualify).
+
+If these conditions do not hold, the run writes its draft/limitations but
+finishes with `status=incomplete` and a detailed `audit.json.readiness` record.
+This is still NOT a factual correctness or source independence certification.
+
+Use `--max-context-chars 48000` to cap serialized LLM inputs before API
+requests; exceeding this hard bound is an explicit failure rather than an
+unbounded request. Source excerpts are truncated under the shared budget and
+marked `excerpt_truncated`, with newest sources considered first; a model
+context excerpt must not be described as a complete document.
+
+The direct Python API `ResearchConfig(question="...", llm="openai")` now
+chooses the same OpenAI model/endpoint defaults as the CLI. See
+[review record](docs/REVIEW-2026-11-13.md).
+

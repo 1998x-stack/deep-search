@@ -86,3 +86,17 @@ The final `run.json.stop_reason` stores the terminal reason; `deviations.json` s
 - A verified exact string is still not verified factual entailment; a human/agent reviewer must check context.
 - Future evaluation: labeled topics measuring source recall, contradiction discovery, independent-origin coverage, answer correctness, and research cost in live authorized runs.
 
+
+
+## Additional final research readiness gate (2026-11-13)
+
+Reflection stopping conditions control how many searches to perform; **they
+do not make the final answer complete**. After synthesis and structural
+citation checking, `assess_research_readiness()` checks grounded claims and
+report-body citations in **every** mode. An empty ledger, snippet-only claims
+or a citation visible only in the bibliography yields `incomplete` even if
+Critic requested a stop or research budgets were exhausted.
+
+This distinction prevents the loop's stop decision from being conflated
+with a factual-quality or source-coverage assurance. See the code audit
+record and tests.

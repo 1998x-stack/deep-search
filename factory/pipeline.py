@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import ResearchConfig, classify_intent
 from .capabilities import resolve_capabilities
-from .evidence import add_sources, audit, normalize_claims
+from .evidence import add_sources, assess_research_readiness, audit, normalize_claims
 from .fetch import FetchError, fetch_text
 from .models import create_model
 from .prompts import CRITIC, EVIDENCE, PLANNER, SYNTHESIS
@@ -35,13 +35,52 @@ def _save(root: Path, filename: str, data: dict | list | str) -> None:
     tmp.replace(target)
 
 
-def _context(sources: list[dict], *, max_chars: int = 6000) -> list[dict]:
-    return [
-        {"id": s["id"], "url": s["url"], "title": s["title"],
-         "snippet": s["snippet"][:400], "content": s["content"][:max_chars],
-         "full_text_available": bool(s["content"])}
-        for s in sources
-    ]
+def _context(sources: list[dict], *, max_chars: int = 6000,
+             max_total_chars: int = 24000) -> list[dict]:
+    """Build a bounded source context, newest-first for later-round coverage.
+
+    This supplies *excerpts*, not an assertion that a complete page was read
+    by the LLM. Each excerpt is checked against the complete stored text.
+    """
+    if max_total_chars < 1024:
+        raise ValueError("source context budget is too small")
+    remaining = max_total_chars
+    rows = []
+    for source in reversed(sources):
+        text = str(source.get("content") or "")
+        row = {
+            "id": str(source.get("id", ""))[:40],
+            "url": str(source.get("url", ""))[:1024],
+            "title": str(source.get("title", ""))[:240],
+            "snippet": str(source.get("snippet", ""))[:300],
+            "content": "",
+            "full_text_available": bool(text),
+            "excerpt_truncated": False,
+        }
+        overhead = len(json.dumps(row, ensure_ascii=False)) + 20
+        if remaining <= overhead:
+            break
+        room = min(max_chars, remaining - overhead)
+        row["content"] = text[:room]
+        row["excerpt_truncated"] = len(text) > room
+        used = len(json.dumps(row, ensure_ascii=False)) + 2
+        if used > remaining:
+            break
+        remaining -= used
+        rows.append(row)
+    return rows
+
+
+def _model_payload(payload: dict, *, limit: int, stage: str,
+                   instructions: str = "") -> str:
+    """Fail explicitly before a model call rather than silently overspend."""
+    serialized = json.dumps(payload, ensure_ascii=False)
+    if len(serialized) + len(instructions) > limit:
+        raise ValueError(
+            stage + " input exceeds max_context_chars; "
+            "reduce research scope or increase the configured bounded limit"
+        )
+    return serialized
 
 
 def _source_index(sources: list[dict]) -> str:
@@ -99,8 +138,10 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         # Phase 1: Plan (no fabricated fallback queries if model fails).
         raw_plan = llm.ask(
             "planner", PLANNER,
-            json.dumps({"question": cfg.question, "depth": cfg.depth,
-                        "intent": intent, "query_budget": cfg.max_queries}, ensure_ascii=False),
+            _model_payload({"question": cfg.question, "depth": cfg.depth,
+                            "intent": intent, "query_budget": cfg.max_queries},
+                           limit=cfg.max_context_chars, stage="planner",
+                           instructions=PLANNER),
             json_mode=True)
         if not isinstance(raw_plan, dict) or not isinstance(raw_plan.get("queries"), list):
             raise ValueError("planner must return a JSON object with queries array")
@@ -190,10 +231,14 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
             # Phase 3: Ask for evidence, but enforce provenance in pure Python.
             evidence_input = {"question": cfg.question, "round": round_number,
-                              "sources": _context(sources), "previous_claims": claims}
+                              "sources": _context(
+                                  sources, max_total_chars=cfg.max_context_chars // 2),
+                              "previous_claims": claims}
             raw_evidence = llm.ask(
                 "evidence", EVIDENCE,
-                json.dumps(evidence_input, ensure_ascii=False), json_mode=True)
+                _model_payload(evidence_input, limit=cfg.max_context_chars,
+                               stage="evidence", instructions=EVIDENCE),
+                json_mode=True)
             claims, evidence_deviations = normalize_claims(raw_evidence, sources, claims)
             deviations.extend(evidence_deviations)
             _save(root, "ledger.json", {"sources": sources, "claims": claims})
@@ -212,12 +257,13 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             )
             critique = llm.ask(
                 "critic", CRITIC,
-                json.dumps({
+                _model_payload({
                     "question": cfg.question, "round": round_number,
                     "claims": claims, "metrics": asdict(observation),
                     "attempted_queries": sorted(attempted_queries),
                     "budget": plan["budget"], "previous_reflection": reflection_log[-2:],
-                }, ensure_ascii=False),
+                }, limit=cfg.max_context_chars, stage="critic",
+                   instructions=CRITIC),
                 json_mode=True,
             )
             if not isinstance(critique, dict):
@@ -251,12 +297,17 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         # Phase 6: Synthesis. It may make inferences, but it cannot add independent facts.
         draft = llm.ask(
             "synthesis", SYNTHESIS,
-            json.dumps({"question": cfg.question, "plan": plan,
-                        "claims": claims, "sources": _context(sources, max_chars=1500),
-                        "critic": critique_log, "reflection": reflection_log,
-                        "stop_reason": manifest["stop_reason"],
-                        "deviations": deviations},
-                       ensure_ascii=False), json_mode=False)
+            _model_payload({"question": cfg.question, "plan": plan,
+                            "claims": claims,
+                            "sources": _context(
+                                sources, max_chars=1500,
+                                max_total_chars=cfg.max_context_chars // 2),
+                            "critic": critique_log, "reflection": reflection_log,
+                            "stop_reason": manifest["stop_reason"],
+                            "deviations": deviations},
+                           limit=cfg.max_context_chars, stage="synthesis",
+                           instructions=SYNTHESIS),
+            json_mode=False)
         if not isinstance(draft, str) or not draft.strip():
             raise ValueError("synthesis returned an empty report")
         report = draft.rstrip() + "\n" + _source_index(sources)
@@ -265,6 +316,10 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
         # Phase 7: Structural audit; strict requires a minimally supported cited claim.
         report_audit = audit({"sources": sources, "claims": claims}, report)
+        readiness = assess_research_readiness(
+            {"sources": sources, "claims": claims}, report)
+        report_audit["readiness"] = readiness
+        report_audit["errors"].extend(readiness["errors"])
         if cfg.strict:
             if report_audit["anchored_support_claims"] < 1:
                 report_audit["errors"].append("strict mode requires anchored supporting evidence")
@@ -275,6 +330,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             if any("uncited supported claim" in w for w in report_audit["warnings"]):
                 report_audit["errors"].append("strict mode requires body citations for supported claims")
             report_audit["valid"] = not report_audit["errors"]
+        # Apply readiness in non-Strict mode too; otherwise excerpt-only
+        # research could incorrectly report success.
+        report_audit["valid"] = not report_audit["errors"]
         _save(root, "audit.json", report_audit)
         manifest["stages"].append("audited")
         manifest["status"] = "completed" if report_audit["valid"] else "incomplete"

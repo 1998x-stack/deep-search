@@ -16,8 +16,8 @@ class ResearchConfig:
     provider: str = "google"
     llm: str = "deepseek"
     depth: str = "deep"
-    model: str = "deepseek-flash"
-    model_base_url: str = "https://api.deepseek.com"
+    model: str | None = None
+    model_base_url: str | None = None
     browser_engine: str = "bing"
     reflection_patience: int = 2
     reflection_similarity_threshold: float = 0.92
@@ -29,6 +29,7 @@ class ResearchConfig:
     fetch_pages: bool = False
     strict: bool = False
     max_output_tokens: int = 1800
+    max_context_chars: int = 48_000
     timeout_seconds: int = 20
     retries: int = 2
     seed: int = 42
@@ -41,6 +42,17 @@ class ResearchConfig:
             raise ValueError("unsupported provider or llm")
         if self.depth not in DEPTH_ROUNDS:
             raise ValueError("invalid depth")
+        # Dataclass/direct-library use must select the same provider defaults
+        # as the CLI; do not accidentally send an OpenAI key to DeepSeek.
+        if self.model is None:
+            object.__setattr__(self, "model",
+                "gpt-6" if self.llm == "openai" else "deepseek-flash")
+        if self.model_base_url is None:
+            object.__setattr__(self, "model_base_url",
+                "https://api.openai.com/v1" if self.llm == "openai"
+                else "https://api.deepseek.com")
+        if not isinstance(self.model, str) or not self.model.strip():
+            raise ValueError("model must be a non-empty string")
         if self.browser_engine not in {"bing", "duckduckgo"}:
             raise ValueError("browser_engine must be bing or duckduckgo")
         if not 1 <= self.reflection_patience <= 5:
@@ -54,6 +66,10 @@ class ResearchConfig:
             value = getattr(self, key)
             if not 1 <= value <= upper:
                 raise ValueError(f"{key} out of range (1–{upper})")
+        if self.llm == "openai" and self.max_output_tokens < 16:
+            raise ValueError("OpenAI max_output_tokens must be at least 16")
+        if not 5_000 <= self.max_context_chars <= 160_000:
+            raise ValueError("max_context_chars must be 5000–160000")
         if not 0 <= self.retries <= 4:
             raise ValueError("retries out of range (0–4)")
         if (self.provider == "mock" or self.llm == "mock") and not self.fixture:
@@ -94,6 +110,7 @@ class ResearchConfig:
             results_per_query=a.results_per_query, max_fetch=a.max_fetch,
             fetch_pages=a.fetch_pages, strict=a.strict,
             max_output_tokens=a.max_output_tokens,
+            max_context_chars=a.max_context_chars,
             timeout_seconds=a.timeout_seconds, retries=a.retries,
             seed=a.seed, fixture=a.fixture,
         )

@@ -41,3 +41,14 @@ Google Custom Search JSON API 面临 2027-01-01 迁移截止，因此搜索接�
 
 阅读 [Reflection 设计](docs/REFLECTION.md)、[设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md) 与 [运行手册](docs/OPERATIONS.md)。
 
+
+
+## 2026-11-13 复核加固
+
+本次修复了三类问题：
+
+- 非 Strict 模式不能再把“只有搜索摘要、没有可核验原文”或“空论断台账”误标为研究完成。必须有与论断状态匹配的正文锚定证据，且报告正文实际引用对应来源，否则返回 `incomplete`，并在 `audit.json.readiness` 记录原因。
+- 直接调用 `ResearchConfig(question="...", llm="openai")` 时使用 OpenAI 默认模型和 API 地址，不再误继承 DeepSeek 默认值。
+- 通过 `--max-context-chars 48000` 限制每次传给模型的总序列化输入。过长则清楚失败并保留产物，而不是无上限消耗 Token；来源只发送标明截断的摘录。
+
+这些只是**工程完整性与引用结构检查**，不是自动事实认证。见 [完整审计记录](docs/REVIEW-2026-11-13.md)。

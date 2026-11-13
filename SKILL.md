@@ -50,3 +50,13 @@ Respect copyrights, privacy and legal access controls.
 This canonical Skill is mirrored to `.agents/skills/deep-search-factory/SKILL.md` (Codex), `.claude/skills/deep-search-factory/SKILL.md` (Claude) and `.opencode/skills/deep-search-factory/SKILL.md` (OpenCode). The main code is self-contained and does not need an agent host.
 
 
+
+
+## Completion gate
+
+Before describing a run as completed, inspect `audit.json.readiness` and
+`run.json.status`. The runtime requires at least one status-appropriate,
+full-text-anchored claim and a corresponding citation in report **body** in
+all modes. A valid structural quote is not a semantic/factual guarantee.
+`--max-context-chars` caps serialized model input; excerpts are tagged if
+truncated. See `docs/REVIEW-2026-11-13.md`.
