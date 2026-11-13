@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "name": "synthetic-source-structure-v1",
+  "limitations": "No real-world factual accuracy, API reliability or independent-source strength is measured.",
+  "cases": [
+    {
+      "id": "two_round_anchored",
+      "question": "When did a fictional public library open?",
+      "fixture": "examples/offline_fixture.json",
+      "rounds": 2,
+      "queries": 4,
+      "seed": 42,
+      "expected_status": "completed",
+      "expected_audit_valid": true
+    },
+    {
+      "id": "snippet_only_rejected",
+      "question": "Can a search excerpt prove the fictional event?",
+      "fixture": "examples/offline_fixture.json",
+      "strip_full_text": true,
+      "rounds": 2,
+      "queries": 4,
+      "seed": 42,
+      "expected_status": "incomplete",
+      "expected_audit_valid": false
+    }
+  ]
+}
+
