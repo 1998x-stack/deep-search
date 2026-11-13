@@ -31,7 +31,7 @@ def parser_for(argv: list[str] | None = None):
     preliminary_args, _ = preliminary.parse_known_args(argv)
     with Path(preliminary_args.config).open(encoding="utf-8") as fh:
         defaults = json.load(fh)
-    if defaults.get("schema_version") != "1.0":
+    if defaults.get("schema_version") not in {"1.0", "1.1"}:
         raise ValueError("config schema_version must be 1.0")
 
     p = argparse.ArgumentParser(description="CleanRL-style evidence-first Deep Research Factory")
