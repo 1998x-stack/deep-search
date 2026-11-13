@@ -93,6 +93,52 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(check["ready"])
         self.assertEqual(check["anchored_claims"], 1)
 
+    def test_same_atomic_claim_merges_independent_source_quotes(self):
+        sources = [
+            {"id": "S001", "url": "https://example.org/a",
+             "content": "A fictional engine was launched in 2020."},
+            {"id": "S002", "url": "https://example.net/b",
+             "content": "Records show the fictional engine was launched in 2020."},
+        ]
+        claim = "The fictional engine launched in 2020"
+        first = {"claims": [{"text": claim, "status": "supported",
+                              "evidence": [{"source_id": "S001", "quote": "was launched in 2020",
+                                            "polarity": "supports"}]}]}
+        second = {"claims": [{"text": claim, "status": "supported",
+                               "evidence": [{"source_id": "S002", "quote": "launched in 2020",
+                                             "polarity": "supports"}]}]}
+        old, _ = normalize_claims(first, sources)
+        merged, notes = normalize_claims(second, sources, old)
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["id"], "C001")
+        self.assertEqual({e["source_id"] for e in merged[0]["evidence"]},
+                         {"S001", "S002"})
+        self.assertTrue(any("merged" in note for note in notes))
+        self.assertEqual(len(old[0]["evidence"]), 1)
+
+    def test_new_contradiction_changes_existing_status_to_disputed(self):
+        sources = [
+            {"id": "S001", "url": "https://example.org/a",
+             "content": "The contract was signed on Monday."},
+            {"id": "S002", "url": "https://example.org/b",
+             "content": "The statement that the contract was signed on Monday is false."},
+        ]
+        first = {"claims": [{"text": "The contract was signed on Monday",
+                             "status": "supported",
+                             "evidence": [{"source_id": "S001", "quote": "signed on Monday",
+                                           "polarity": "supports"}]}]}
+        contrary = {"claims": [{"text": "The contract was signed on Monday",
+                                "status": "refuted",
+                                "evidence": [{"source_id": "S002",
+                                              "quote": "signed on Monday is false",
+                                              "polarity": "contradicts"}]}]}
+        old, _ = normalize_claims(first, sources)
+        merged, _ = normalize_claims(contrary, sources, old)
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["status"], "disputed")
+        self.assertEqual({e["polarity"] for e in merged[0]["evidence"]},
+                         {"supports", "contradicts"})
+
     def test_duplicate_claim(self):
         src = [{"id": "S001", "url": "https://example.org", "content": "X"}]
         data = {"claims": [{"text": "Claim", "status": "unverified", "evidence": []}]}
