@@ -87,6 +87,97 @@ class PipelineTests(unittest.TestCase):
             _model_payload({"ok": True}, limit=25, stage="test",
                            instructions="prefix " * 10)
 
+    def test_multichunk_source_is_processed_and_tracked_end_to_end(self):
+        class Search:
+            def search(self, query, *, num=5):
+                return [{
+                    "url": "https://example.org/long-primary",
+                    "title": "Long primary source",
+                    "snippet": "unverified search lead",
+                    "content": "Verified opening was 2020. " + "background information " * 650,
+                }]
+
+        class Model:
+            def __init__(self):
+                self.evidence_calls = 0
+                self.seen_segments = []
+
+            def ask(self, stage, system, user, *, json_mode=False):
+                request = json.loads(user)
+                if stage == "planner":
+                    return {"scope": "fictional", "hypotheses": [],
+                            "queries": ["primary source opening date"]}
+                if stage == "evidence":
+                    self.evidence_calls += 1
+                    self.seen_segments.extend(x["segment_id"] for x in request["sources"])
+                    assert all("source_id" in x and "start" in x and "end" in x
+                               for x in request["sources"])
+                    if any("Verified opening was 2020" in x["content"]
+                           for x in request["sources"]):
+                        return {"claims": [{"text": "Opening was 2020",
+                            "status": "supported", "analysis": "fictional",
+                            "evidence": [{"source_id": "S001",
+                              "quote": "Verified opening was 2020",
+                              "polarity": "supports"}]}]}
+                    return {"claims": []}
+                if stage == "critic":
+                    return {"stop": True, "next_queries": [],
+                            "gaps": [], "contradictions": [], "rationale": "done"}
+                if stage == "synthesis":
+                    return "The opening was in 2020 [C001][S001]."
+                raise AssertionError("Unexpected stage " + stage)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            model = Model()
+            cfg = ResearchConfig(
+                question="Synthetic opening", out=tmp, provider="mock", llm="mock",
+                fixture=str(FIXTURE), max_rounds=1, strict=True,
+                max_context_chars=5000, evidence_segment_chars=512,
+                max_evidence_calls=24)
+            run = run_research(cfg, model=model, search=Search())
+            self.assertEqual(run["status"], "completed", run["errors"])
+            self.assertGreater(model.evidence_calls, 1)
+            coverage = json.loads((Path(tmp)/"coverage.json").read_text())
+            self.assertTrue(coverage["summary"]["all_retrieved_text_processed"])
+            self.assertEqual(coverage["summary"]["model_processed_source_count"], 1)
+            self.assertEqual(len(model.seen_segments),
+                             coverage["summary"]["total_segments"])
+            self.assertEqual(coverage["sources"]["S001"]["retrieved_text_coverage"], 1.0)
+            citations = json.loads((Path(tmp)/"citation_map.json").read_text())
+            self.assertTrue(citations["valid"], citations["errors"])
+            self.assertEqual(citations["bindings"][0]["claim_id"], "C001")
+
+    def test_evidence_call_budget_leaves_run_incomplete_not_silent(self):
+        class Search:
+            def search(self, query, *, num=5):
+                return [{"url": "https://example.org/long", "title": "test",
+                         "content": "A fictional fact. " + "x" * 6000}]
+        class Model:
+            def ask(self, stage, system, user, *, json_mode=False):
+                if stage == "planner":
+                    return {"queries": ["fictional fact"], "scope": "test", "hypotheses": []}
+                if stage == "evidence":
+                    return {"claims": [{"text": "A fictional fact", "status": "supported",
+                                       "evidence": [{"source_id": "S001",
+                                         "quote": "A fictional fact.", "polarity": "supports"}]}]}
+                if stage == "critic":
+                    return {"stop": True, "next_queries": [], "gaps": [],
+                            "contradictions": [], "rationale": "done"}
+                return "A fictional fact [C001][S001]."
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = ResearchConfig(
+                question="Budget test", out=tmp, provider="mock", llm="mock",
+                fixture=str(FIXTURE), strict=True, max_rounds=1,
+                evidence_segment_chars=512, max_evidence_calls=1,
+                max_context_chars=5000)
+            run = run_research(cfg, model=Model(), search=Search())
+            self.assertEqual(run["status"], "incomplete", run["errors"])
+            self.assertEqual(run["stop_reason"], "evidence_call_budget_exhausted")
+            summary = json.loads((Path(tmp)/"coverage.json").read_text())["summary"]
+            self.assertFalse(summary["all_retrieved_text_processed"])
+            self.assertTrue(summary["partially_processed_source_ids"] or
+                            summary["unprocessed_source_ids"])
+
     def test_missing_keys_fails_and_preserves_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = ResearchConfig(question="Any question", out=tmp)

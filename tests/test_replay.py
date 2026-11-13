@@ -103,6 +103,43 @@ class ReplayListTests(unittest.TestCase):
         self.assertEqual(search.search("减速器", num=5),
                          search.search("减速器", num=5))
 
+    def test_zero_overlap_returns_empty_and_preserves_pool(self):
+        cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(self.path))
+        search = create_search(cfg)
+        self.assertEqual(search.search("quantum astrophysics neutrino superconductor", num=3), [])
+        self.assertEqual(search.remaining, 3)
+        self.assertFalse(search.exhausted)
+        self.assertFalse(search.open_world_discovery)
+        self.assertTrue(search.fixed_corpus)
+
+    def test_results_by_query_only_is_not_silently_ignored(self):
+        rows = {
+            "schema_version": "1.0",
+            "provenance": LIST["provenance"],
+            "results_by_query": {
+                "industrial application scenarios": [{
+                    "url": "https://example.org/downstream",
+                    "title": "industrial application scenarios",
+                    "snippet": "Manufacturing evidence"
+                }]
+            }
+        }
+        path = self.payload(**rows)
+        cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(path))
+        search = create_search(cfg)
+        got = search.search("industrial application scenarios", num=2)
+        self.assertEqual([x["url"] for x in got], ["https://example.org/downstream"])
+        self.assertTrue(search.exhausted)
+
+    def test_query_agnostic_list_is_searchable(self):
+        path = self.payload(pool=[], queries=[
+            {"url": "https://example.org/reference",
+             "title": "quantum researcher primary text", "snippet": "primary"}
+        ])
+        cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(path))
+        search = create_search(cfg)
+        self.assertEqual(len(search.search("quantum researcher", num=2)), 1)
+
     def test_search_rejects_bad_arguments(self):
         cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(self.path))
         search = create_search(cfg, search_fixture=str(self.path))
@@ -125,6 +162,8 @@ class ReplayListTests(unittest.TestCase):
             result = run_research(cfg, fetcher=fetcher)
             saved = json.loads((Path(out) / "run.json").read_text(encoding="utf-8"))
         self.assertEqual(result["discovery_mode"], "operator_imported")
+        self.assertEqual(result["discovery_scope"], "fixed_corpus")
+        self.assertFalse(result.get("open_world_discovery", False))
         self.assertEqual(saved["discovery_provenance"]["collection_tool"],
                          "external-web-search-api")
         self.assertIn("discovery.json", saved["artifacts"])
