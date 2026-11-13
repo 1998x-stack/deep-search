@@ -29,3 +29,27 @@ python scripts/live_smoke.py --live --llm openai --provider playwright
 
 Strict mode fails structural requirements rather than quietly certifying sources; check `audit.json`, `reflection.json` and `deviations.json` before sharing a report. Live fetch is opt-in, HTML-only, bounded, and unsuitable for public URL processing.
 
+
+
+## Source completeness and model budgets
+
+The old non-strict behavior could label snippet-only or empty-claim reports as
+`completed`. Now `audit.json.readiness` must indicate `ready=true` before any
+mode reports completion. `incomplete` means evidence is insufficient or
+uncited, not that research results are necessarily false.
+
+For large topics set bounded model input characters explicitly:
+
+~~~bash
+python algorithms/deep_research.py --question "Research X" \
+  --llm openai --provider google --fetch-pages \
+  --max-context-chars 48000 --out runs/bounded
+~~~
+
+`max_context_chars` is a Unicode-character guard, **not** a tokenizer or cost
+estimator. The engine supplies source excerpts under a cumulative cap, marks
+truncation, and rejects oversized aggregated claims/plan before an API call.
+Reducing scope or raising the bounded limit (maximum 160000 chars) is safer
+than silently dropping unreviewed claims.
+
+See `docs/REVIEW-2026-11-13.md` for unresolved network-fetch risks.
