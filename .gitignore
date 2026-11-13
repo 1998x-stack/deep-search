@@ -1,12 +1,35 @@
+# Secrets and local configuration
 .env
 .env.*
 !.env.example
+
+# Python environments and build output
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
-runs/
-dist/
 build/
+dist/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
+# Research artifacts (reports, ledgers, sources, run logs)
+runs/
+logs/
+*.log
+
+# Editor / OS / agent-harness state
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.pi/
+*.swp
+
+# Local scratch output that must never be committed
+*.tmp
+runs*.jsonl

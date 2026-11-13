@@ -7,7 +7,7 @@ name = "deep-search-factory"
 version = "0.3.0"
 description = "CleanRL-style evidence-first deep research factory"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["loguru>=0.7,<1"]
 license = "MIT"
 
 [project.optional-dependencies]
