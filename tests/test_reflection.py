@@ -67,6 +67,20 @@ class ReflectionTests(unittest.TestCase):
         self.assertEqual(m.new_sources, 1)
         self.assertEqual(m.new_anchored_support_claims, 1)
 
+
+    def test_new_search_snippets_do_not_reset_stagnation(self):
+        sources = [{"id": "S001", "content": ""}, {"id": "S002", "content": ""}]
+        metrics = observe(
+            sources, [], previous_source_count=1,
+            previous_full_text_count=0, previous_anchored_count=0,
+            remaining_queries=3, remaining_rounds=2, max_sources=20,
+        )
+        self.assertEqual(metrics.new_sources, 1)
+        self.assertFalse(metrics.progressed)
+        result = decide(metrics, {"stop": False, "next_queries": ["novel primary source"]},
+                        history=set(), previous_stalled_rounds=1, patience=2)
+        self.assertEqual(result.reason, "stagnated")
+
     def test_invalid_critic_contract_rejected(self):
         with self.assertRaises(ValueError):
             decide(self.metrics(), {"stop": "false", "next_queries": []},

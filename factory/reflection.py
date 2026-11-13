@@ -95,7 +95,8 @@ def observe(sources: list[dict], claims: list[dict], *,
         remaining_queries=max(0, remaining_queries),
         remaining_rounds=max(0, remaining_rounds),
         remaining_source_slots=max(0, max_sources - len(sources)),
-        progressed=bool(new_sources or new_full_text or new_anchored),
+        # Search hit count alone does not constitute material research progress.
+        progressed=bool(new_full_text or new_anchored),
     )
 
 
