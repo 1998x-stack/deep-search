@@ -1,0 +1,64 @@
+name: Prune merged branches once
+on:
+  push:
+    branches:
+      - factory/cleanrl-deepseek-google-v1
+    paths:
+      - .github/workflows/prune-merged-branches-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prune-merged-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify protected keep-list and remove only four merged heads
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const keep = new Set(['main', 'factory/cleanrl-deepseek-google-v1']);
+            const expected = [
+              { name: 'feat/master-research-prompt-v1', sha: '7e269dbfdf9a6a16d54969a17f586928aac4a00e' },
+              { name: 'feat/openai-playwright-reflection-v2', sha: '1719c8a84ba576910794a0e160df89335d5b24b2' },
+              { name: 'feat/research-engine-v1', sha: 'cd05c5fe6a547bb7e48df2cbdf425606bf035473' },
+              { name: 'fix/factory-review-readiness-budget-20261113', sha: '6d30d4dda6c0fa730a51b9514af05c2eda117c5e' }
+            ];
+            const repoInfo = (await github.rest.repos.get({ owner, repo })).data;
+            if (repoInfo.default_branch !== 'main') {
+              throw new Error('Default branch changed; abort.');
+            }
+            const branches = await github.paginate(github.rest.repos.listBranches,
+              { owner, repo, per_page: 100 });
+            const byName = new Map(branches.map(x => [x.name, x]));
+            if (!byName.has('main') || !byName.has('factory/cleanrl-deepseek-google-v1')) {
+              throw new Error('One of the keep branches is missing; abort.');
+            }
+            if (branches.length !== 6) {
+              throw new Error('Branch list changed since explicit user-approved plan; abort.');
+            }
+            for (const target of expected) {
+              const found = byName.get(target.name);
+              if (!found || found.protected || found.commit.sha !== target.sha) {
+                throw new Error('Unexpected branch state for ' + target.name + '; abort.');
+              }
+            }
+            const extra = branches.filter(x => !keep.has(x.name) &&
+              !expected.some(target => target.name === x.name));
+            if (extra.length) throw new Error('Unexpected extra branches; abort.');
+            for (const target of expected) {
+              await github.rest.git.deleteRef({
+                owner, repo, ref: 'heads/' + target.name
+              });
+              core.info('Deleted merged branch: ' + target.name);
+            }
+            const now = await github.paginate(github.rest.repos.listBranches,
+              { owner, repo, per_page: 100 });
+            const names = now.map(x => x.name).sort();
+            const desired = [...keep].sort();
+            if (JSON.stringify(names) !== JSON.stringify(desired)) {
+              throw new Error('Post-delete branch verification failed: ' + JSON.stringify(names));
+            }
+            core.notice('Verified only main and factory/cleanrl-deepseek-google-v1 remain.');
