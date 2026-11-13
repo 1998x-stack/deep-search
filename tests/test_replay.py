@@ -141,6 +141,51 @@ class ReplayListTests(unittest.TestCase):
         search = create_search(cfg)
         self.assertEqual(len(search.search("quantum researcher", num=2)), 1)
 
+    def test_reflection_stops_when_fixed_pool_is_exhausted(self):
+        payload = {
+            "schema_version": "1.0",
+            "provenance": LIST["provenance"],
+            "pool": [
+                {"url": "https://example.org/primary", "title": "Fictional research topic",
+                 "snippet": "Fictional fact"}
+            ],
+        }
+        path = self.payload(**payload, queries={}, results_by_query={})
+        class Model:
+            def ask(self, stage, system, user, *, json_mode=False):
+                if stage == "planner":
+                    return {"scope": "fictional", "hypotheses": [],
+                            "queries": ["Fictional research topic"]}
+                if stage == "evidence":
+                    return {"claims": [{"text": "Fictional fact exists",
+                        "status": "supported", "analysis": "test",
+                        "evidence": [{"source_id": "S001", "quote": "Fictional fact exists",
+                                      "polarity": "supports"}]}]}
+                if stage == "critic":
+                    return {"stop": False, "next_queries": ["another distinct discovery"],
+                            "gaps": ["other sources"], "contradictions": [],
+                            "rationale": "keep seeking"}
+                if stage == "synthesis":
+                    return "Fictional fact exists [C001][S001]."
+                raise AssertionError(stage)
+        with tempfile.TemporaryDirectory() as out:
+            cfg = ResearchConfig(
+                question="Fixed corpus research", out=out, provider="replay",
+                llm="mock", fixture="examples/offline_fixture.json",
+                search_fixture=str(path), strict=True, fetch_pages=True,
+                max_rounds=3, max_queries=5, max_sources=3)
+            search = create_search(cfg)
+            def fetcher(url, *, timeout=20):
+                return {"url": url, "content": "Fictional fact exists; entirely synthetic testing."}
+            result = run_research(cfg, model=Model(), search=search, fetcher=fetcher)
+            self.assertEqual(result["status"], "completed", result["errors"])
+            self.assertEqual(result["stop_reason"], "fixed_corpus_exhausted")
+            self.assertEqual(result["discovery_scope"], "fixed_corpus")
+            self.assertTrue(result["discovery_pool_exhausted"])
+            logs = json.loads((Path(out)/"reflection.json").read_text())
+            self.assertEqual(logs[0]["discovery_scope"], "fixed_corpus")
+            self.assertEqual(logs[0]["decision"]["reason"], "fixed_corpus_exhausted")
+
     def test_search_rejects_bad_arguments(self):
         cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(self.path))
         search = create_search(cfg, search_fixture=str(self.path))
