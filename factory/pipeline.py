@@ -289,6 +289,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                             body = fetcher(src["url"], timeout=cfg.timeout_seconds)
                             src["content"] = body["content"]
                             src["resolved_url"] = body["url"]
+                            src["fetch_truncated"] = bool(body.get("content_truncated", False))
+                            src["extracted_chars"] = body.get("extracted_chars")
                             src["content_sha256"] = hashlib.sha256(
                                 src["content"].encode("utf-8")).hexdigest()
                             logger.bind(stage="fetch", round=round_number).info(
@@ -473,6 +475,13 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             report_audit["errors"].append(
                 "retrieved full text contains unprocessed segments; "
                 "report cannot be certified complete")
+        if coverage_summary["upstream_truncated_source_ids"]:
+            note = ("HTML extractor truncated source text before model analysis: " +
+                    ", ".join(coverage_summary["upstream_truncated_source_ids"]))
+            if cfg.strict:
+                report_audit["errors"].append(note)
+            else:
+                report_audit["warnings"].append(note)
         readiness = assess_research_readiness(
             {"sources": sources, "claims": claims}, report)
         report_audit["readiness"] = readiness

@@ -101,9 +101,12 @@ def summarize_coverage(coverage: dict) -> dict:
     partial: list[str] = []
     pending: list[str] = []
     unavailable: list[str] = []
+    truncated: list[str] = []
     total_segments = 0
     processed_segments = 0
     for sid, entry in coverage.items():
+        if entry.get("fetch_truncated"):
+            truncated.append(sid)
         n = entry["segments_total"]
         done = len(entry["processed_segment_ids"])
         total_segments += n
@@ -130,6 +133,7 @@ def summarize_coverage(coverage: dict) -> dict:
         "partially_processed_source_ids": partial,
         "unprocessed_source_ids": pending,
         "unavailable_source_ids": unavailable,
+        "upstream_truncated_source_ids": truncated,
         "processed_segments": processed_segments,
         "total_segments": total_segments,
         "all_retrieved_text_processed": not (partial or pending),

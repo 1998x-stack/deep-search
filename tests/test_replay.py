@@ -124,7 +124,8 @@ class ReplayListTests(unittest.TestCase):
                 }]
             }
         }
-        path = self.payload(**rows)
+        # Isolate the keyed-only format; default fixtures also have a flat pool.
+        path = self.payload(**rows, pool=[], queries={})
         cfg = ResearchConfig(question="chain", provider="replay", search_fixture=str(path))
         search = create_search(cfg)
         got = search.search("industrial application scenarios", num=2)

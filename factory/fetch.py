@@ -98,6 +98,10 @@ def fetch_text(url: str, *, timeout: int = 15, max_bytes: int = 750_000,
             parser = _Extractor()
             parser.feed(content)
             content = " ".join(parser.fragments)
-        return {"url": current, "content": re.sub(r"\s+", " ", content).strip()[:35_000]}
+        extracted = re.sub(r"\s+", " ", content).strip()
+        # Do not misrepresent a 35k-character excerpt as a complete source.
+        return {"url": current, "content": extracted[:35_000],
+                "extracted_chars": len(extracted),
+                "content_truncated": len(extracted) > 35_000}
     raise FetchError("too many redirects")
 
