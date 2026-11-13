@@ -1,0 +1,83 @@
+{
+  "synthetic": true,
+  "description": "ALL PEOPLE AND CLAIMS ARE FICTIONAL — test tool flow only",
+  "responses": {
+    "planner": {
+      "scope": "Fictional town, invented example",
+      "hypotheses": ["The library opened in 2020", "The 2019 opening date is false"],
+      "queries": ["fictional library official notice", "fictional library correction"]
+    },
+    "evidence": [
+      {
+        "claims": [
+          {
+            "text": "Within this synthetic example, the fictional library opened in 2020.",
+            "status": "supported",
+            "analysis": "This statement is supported only by a fabricated test fixture.",
+            "evidence": [
+              {
+                "source_id": "S001",
+                "quote": "The fictional public library opened in 2020",
+                "polarity": "supports"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "claims": [
+          {
+            "text": "Within this synthetic example, an alleged 2019 date was corrected.",
+            "status": "supported",
+            "analysis": "Supported only by the second synthetic source.",
+            "evidence": [
+              {
+                "source_id": "S002",
+                "quote": "The 2019 date was incorrect",
+                "polarity": "supports"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "critic": [
+      {
+        "stop": false,
+        "next_queries": ["fictional library correction"],
+        "gaps": ["Check whether 2019 date was a mistake"],
+        "contradictions": [],
+        "rationale": "Fictional correction provides an alternative account"
+      },
+      {
+        "stop": true,
+        "next_queries": [],
+        "gaps": [],
+        "contradictions": [],
+        "rationale": "Synthetic demonstration completed"
+      }
+    ],
+    "synthesis": "# Synthetic research report\n\n## Executive Summary\nThe fictional library opened in 2020 [S001], not 2019 [S002].\n\n## Limitations\nAll evidence is synthetic; this report must not be used to establish real events."
+  },
+  "search_results": {
+    "fictional library official notice": [
+      {
+        "url": "https://example.org/fictional/notice",
+        "title": "SYNTHETIC — fictional library notice",
+        "snippet": "A fictional library announcement",
+        "published_at": null,
+        "content": "The fictional public library opened in 2020 after an imaginary municipal vote."
+      }
+    ],
+    "fictional library correction": [
+      {
+        "url": "https://example.org/fictional/correction",
+        "title": "SYNTHETIC — fictional library correction",
+        "snippet": "An invented correction notice",
+        "published_at": null,
+        "content": "The 2019 date was incorrect. The fictional public library opened in 2020."
+      }
+    ]
+  }
+}
+
