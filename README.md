@@ -2,7 +2,7 @@
 
 Evidence-first deep research, implemented with a CleanRL-inspired **explicit algorithm script** and small **provider factories**. This branch began from an empty file tree; its initial empty-tree commit still has main as a parent, so Git history is not orphaned.
 
-[中文](README.zh.md) | [Reflection Loop](docs/REFLECTION.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Logging](docs/LOGGING.md) | [Case study](docs/CASE-EMBODIED-INTELLIGENCE.md) | [Skill](SKILL.md)
+[中文](README.zh.md) | [Reflection Loop](docs/REFLECTION.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Logging](docs/LOGGING.md) | [Gotchas](docs/gotchas.md) | [Case study](docs/CASE-EMBODIED-INTELLIGENCE.md) | [Skill](SKILL.md)
 
 ## Running
 

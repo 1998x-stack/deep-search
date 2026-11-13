@@ -44,7 +44,7 @@ Google Custom Search JSON API 面临 2027-01-01 迁移截止，因此搜索接�
 
 联网连接测试：设置好环境变量后显式运行 `python scripts/live_smoke.py --live`（仅检查接口形态，不检验事实准确性）。运行时能力清单写入 `capabilities.json`，自主反思逐轮轨迹写入 `reflection.json`。代码根据新增证据、查询新颖性、连续停滞与预算决定是否批准 Critic 提议。
 
-阅读 [Reflection 设计](docs/REFLECTION.md)、[设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md)、[日志说明](docs/LOGGING.md)、[案例：具身智能产业链](docs/CASE-EMBODIED-INTELLIGENCE.md) 与 [运行手册](docs/OPERATIONS.md)。
+阅读 [Reflection 设计](docs/REFLECTION.md)、[设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md)、[日志说明](docs/LOGGING.md)、[踩坑记录](docs/gotchas.md)、[案例：具身智能产业链](docs/CASE-EMBODIED-INTELLIGENCE.md) 与 [运行手册](docs/OPERATIONS.md)。
 
 ## 检索不可用时的 replay 通道（2026-11-13）
 

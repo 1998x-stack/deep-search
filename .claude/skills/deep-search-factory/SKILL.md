@@ -42,6 +42,7 @@ Respect copyrights, privacy and legal access controls.
 - `docs/ARCHITECTURE.md`: code category map, decision flow and provenance boundaries.
 - `docs/OPERATIONS.md`: execution, artifacts and API configuration.
 - `docs/LOGGING.md`: loguru sinks, record shape and secret redaction rules.
+- `docs/gotchas.md`: symptom → cause → rule notes for the iagent endpoint, Playwright degradation, loguru traps and environment limits.
 - `docs/CASE-EMBODIED-INTELLIGENCE.md`: worked 分析/测试/研究 example with its recorded failures.
 - `docs/REFLECTION.md`: deterministic Reflection Loop policy, metrics and stop conditions.
 - `docs/ARCHITECTURE-V03.md`: provider and search architecture.
