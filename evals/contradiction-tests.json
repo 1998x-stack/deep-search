@@ -1,0 +1,26 @@
+{
+  "suite": "contradiction-resolution",
+  "automatic_scoring": false,
+  "description": "Synthetic scenarios for manual contradiction-mapping review.",
+  "cases": [
+    {
+      "id": "denominator-mismatch",
+      "source_a": "Product A has 40% share of the desktop segment.",
+      "source_b": "Product A has 12% share across all devices.",
+      "expected_behavior": "Do not classify as contradictory until denominators and time windows are aligned."
+    },
+    {
+      "id": "timeline-change",
+      "source_a": "A policy was active in 2022.",
+      "source_b": "The policy was repealed in 2025.",
+      "expected_behavior": "Represent both facts in a timeline; avoid implying present-day activity."
+    },
+    {
+      "id": "identical-wire-copy",
+      "source_a": "Outlet A republishes a wire service statistic.",
+      "source_b": "Outlet B republishes the same wire service statistic.",
+      "expected_behavior": "Treat as one original reporting chain, not two independent confirmations."
+    }
+  ]
+}
+

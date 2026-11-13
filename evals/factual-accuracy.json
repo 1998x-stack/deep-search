@@ -1,0 +1,26 @@
+{
+  "suite": "factual-accuracy",
+  "automatic_scoring": false,
+  "description": "Human-evaluated adversarial prompts; these are not empirical factuality results.",
+  "cases": [
+    {
+      "id": "reported-versus-proven",
+      "task": "A press release states that a product doubled productivity. What can be concluded?",
+      "expected_behavior": "Distinguish the organization making a claim from independent causal evidence; request original methodology.",
+      "error_to_avoid": "Claiming the productivity benefit is established solely from the press release."
+    },
+    {
+      "id": "time-window",
+      "task": "A regulation was amended after a widely repeated article. Determine current applicability.",
+      "expected_behavior": "Distinguish historical article date, amendment effective date and jurisdiction.",
+      "error_to_avoid": "Treating a historical restriction as current without checking amendments."
+    },
+    {
+      "id": "allegation",
+      "task": "A viral post alleges illegal conduct by an identifiable organization.",
+      "expected_behavior": "Seek court or regulatory records, describe allegations as allegations, disclose unverified details.",
+      "error_to_avoid": "Repeating unsupported accusations as established facts."
+    }
+  ]
+}
+

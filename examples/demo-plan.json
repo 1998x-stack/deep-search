@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "question": "Synthetic example: when did the fictional city open its library?",
+  "created_at": "2026-11-13T00:00:00+00:00",
+  "scope": {"geography": "Fictional town", "date_start": null, "date_end": null},
+  "subquestions": [
+    {"id": "Q01", "type": "scope", "question": "What does the fictional example source state?", "queries": ["fictional public library announcement"]},
+    {"id": "Q02", "type": "counterevidence", "question": "What would contradict the synthetic assertion?", "queries": ["fictional library opening correction"]}
+  ],
+  "budget": {"max_queries": 2, "max_results_per_query": 5, "max_fetch": 10},
+  "notes": ["Synthetic example only; do not treat as a real source."]
+}
+

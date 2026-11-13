@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/1998x-stack/deep-search/schemas/report.schema.json",
+  "title": "Optional report metadata / reproducibility manifest",
+  "type": "object",
+  "required": ["schema_version", "question", "generated_at", "report_path", "ledger_path", "status"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "question": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "report_path": {"type": "string", "minLength": 1},
+    "ledger_path": {"type": "string", "minLength": 1},
+    "status": {"enum": ["draft", "reviewed", "audited", "incomplete"]},
+    "audit_path": {"type": ["string", "null"]},
+    "open_questions": {"type": "array", "items": {"type": "string"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}
+
