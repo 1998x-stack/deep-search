@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/1998x-stack/deep-search/schemas/evidence.schema.json",
+  "title": "Claim to evidence provenance ledger",
+  "type": "object",
+  "required": ["sources", "claims"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "url", "content"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^S[0-9]{3,}$"},
+          "url": {"type": "string", "format": "uri"},
+          "title": {"type": "string"},
+          "publisher": {"type": "string"},
+          "published_at": {"type": ["string", "null"]},
+          "retrieved_at": {"type": ["string", "null"]},
+          "content": {"type": "string"},
+          "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "status", "evidence"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^C[0-9]{3,}$"},
+          "text": {"type": "string", "minLength": 1},
+          "status": {"enum": ["supported", "partially_supported", "disputed", "unverified", "refuted"]},
+          "analysis": {"type": "string"},
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id", "quote", "polarity"],
+              "properties": {
+                "source_id": {"type": "string", "pattern": "^S[0-9]{3,}$"},
+                "quote": {"type": "string", "minLength": 1},
+                "polarity": {"enum": ["supports", "contradicts", "context"]},
+                "notes": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

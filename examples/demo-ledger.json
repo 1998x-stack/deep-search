@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "id": "S001",
+      "title": "SYNTHETIC source for offline tests",
+      "publisher": "Fictional publisher",
+      "url": "https://example.org/fictional-library",
+      "published_at": null,
+      "retrieved_at": null,
+      "content": "A fictional city opened a fictional public library in 2020 after a vote.",
+      "notes": "This content was authored solely for software testing; no live page is implied."
+    }
+  ],
+  "claims": [
+    {
+      "id": "C001",
+      "text": "In the synthetic fixture, a fictional city opened a fictional library in 2020.",
+      "status": "supported",
+      "analysis": "Supported only within this synthetic test fixture; does not establish any external fact.",
+      "evidence": [
+        {
+          "source_id": "S001",
+          "quote": "A fictional city opened a fictional public library in 2020",
+          "polarity": "supports"
+        }
+      ]
+    }
+  ]
+}
+

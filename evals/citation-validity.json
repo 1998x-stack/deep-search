@@ -1,0 +1,43 @@
+{
+  "suite": "citation-validity",
+  "purpose": "Offline executable checks for structural integrity, not semantic truth",
+  "cases": [
+    {
+      "id": "quote-present",
+      "expected_valid": true,
+      "ledger": {
+        "sources": [{"id": "S001", "url": "https://example.org/a", "content": "Alpha issued a statement on Monday."}],
+        "claims": [{"id": "C001", "text": "Alpha issued a statement.", "status": "supported",
+          "evidence": [{"source_id": "S001", "quote": "Alpha issued a statement", "polarity": "supports"}]}]
+      }
+    },
+    {
+      "id": "fabricated-quote",
+      "expected_valid": false,
+      "ledger": {
+        "sources": [{"id": "S001", "url": "https://example.org/a", "content": "Alpha issued a statement on Monday."}],
+        "claims": [{"id": "C001", "text": "Claim is unfounded.", "status": "supported",
+          "evidence": [{"source_id": "S001", "quote": "Beta did something else", "polarity": "supports"}]}]
+      }
+    },
+    {
+      "id": "unknown-source",
+      "expected_valid": false,
+      "ledger": {
+        "sources": [],
+        "claims": [{"id": "C001", "text": "Source unknown", "status": "supported",
+          "evidence": [{"source_id": "S999", "quote": "Some words", "polarity": "supports"}]}]
+      }
+    },
+    {
+      "id": "missing-full-text",
+      "expected_valid": false,
+      "ledger": {
+        "sources": [{"id": "S001", "url": "https://example.org/a", "content": ""}],
+        "claims": [{"id": "C001", "text": "Cannot verify quote presence.", "status": "supported",
+          "evidence": [{"source_id": "S001", "quote": "Some words", "polarity": "supports"}]}]
+      }
+    }
+  ]
+}
+
