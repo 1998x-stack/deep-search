@@ -83,6 +83,20 @@ class ResearchTests(unittest.TestCase):
         bad = {"sources": [], "claims": [CLAIM]}
         self.assertFalse(validate_ledger(bad)["valid"])
 
+    def test_tampered_content_hash_is_rejected(self):
+        source = dict(SOURCE, content_sha256="0" * 64)
+        result = validate_ledger({"sources": [source], "claims": [CLAIM]})
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("checksum" in error for error in result["errors"]))
+
+    def test_fetch_is_explicit_opt_in(self):
+        with tempfile.TemporaryDirectory() as folder:
+            inp = Path(folder) / "input.json"
+            out = Path(folder) / "output.json"
+            inp.write_text(json.dumps({"sources": [SOURCE]}))
+            self.assertEqual(main(["fetch", "--input", str(inp), "--output", str(out)]), 2)
+            self.assertFalse(out.exists())
+
     def test_report_and_audit(self):
         p = make_plan("Did the library open?")
         ledger = {"sources": [SOURCE], "claims": [CLAIM]}

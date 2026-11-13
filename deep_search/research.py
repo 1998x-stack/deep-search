@@ -116,6 +116,10 @@ def validate_ledger(ledger: dict) -> dict:
             canonical_url(source.get("url", ""))
         except ValueError:
             errors.append("Invalid URL for " + sid)
+        if source.get("content_sha256"):
+            actual_hash = hashlib.sha256((source.get("content") or "").encode("utf-8")).hexdigest()
+            if actual_hash != source["content_sha256"]:
+                errors.append("Content checksum mismatch for " + sid)
         sources[sid] = source
     claim_ids = set()
     for claim in ledger.get("claims", []):

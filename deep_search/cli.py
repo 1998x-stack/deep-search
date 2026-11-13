@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -135,6 +136,7 @@ def execute(args: argparse.Namespace) -> int:
             try:
                 response = fetch_document(item["url"])
                 item["content"] = response["content"]
+                item["content_sha256"] = hashlib.sha256(item["content"].encode("utf-8")).hexdigest()
                 item["resolved_url"] = response["url"]
                 item["fetched_at"] = now_iso()
             except Exception as exc:
