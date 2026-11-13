@@ -41,6 +41,8 @@ def fold(text: str) -> str:
 def add_sources(existing: list[dict], incoming: list[dict], *, max_sources: int) -> int:
     """Merge canonical URL duplicates, keep original primary source IDs stable."""
     by_url = {canonical_url(x["url"]): x for x in existing}
+    by_text = {hashlib.sha256(fold(x["content"]).encode()).hexdigest(): x
+               for x in existing if len(fold(x.get("content", ""))) >= 120}
     added = 0
     for raw in incoming:
         try:
@@ -51,6 +53,13 @@ def add_sources(existing: list[dict], incoming: list[dict], *, max_sources: int)
             prior = by_url[key]
             if not prior.get("content") and raw.get("content"):
                 prior["content"] = raw["content"]
+            continue
+        full_text = fold(raw.get("content") or "")
+        fingerprint = (hashlib.sha256(full_text.encode()).hexdigest()
+                       if len(full_text) >= 120 else None)
+        if fingerprint and fingerprint in by_text:
+            original = by_text[fingerprint]
+            original.setdefault("aliases", []).append({"url": raw["url"], "reason": "exact_content"})
             continue
         if len(existing) >= max_sources:
             break
@@ -66,6 +75,8 @@ def add_sources(existing: list[dict], incoming: list[dict], *, max_sources: int)
         )
         existing.append(item)
         by_url[key] = item
+        if fingerprint:
+            by_text[fingerprint] = item
         added += 1
     return added
 
@@ -89,6 +100,7 @@ def normalize_claims(payload: dict, sources: list[dict], existing: list[dict] | 
         status = raw_status if raw_status in STATUSES else "unverified"
         items = []
         valid_support = 0
+        valid_contradiction = 0
         for e in raw.get("evidence", []):
             if not isinstance(e, dict):
                 continue
@@ -108,12 +120,16 @@ def normalize_claims(payload: dict, sources: list[dict], existing: list[dict] | 
                 deviations.append("unanchored quote in " + source["id"])
             if anchored and polarity == "supports":
                 valid_support += 1
+            if anchored and polarity == "contradicts":
+                valid_contradiction += 1
             items.append({
                 "source_id": source["id"], "quote": quote,
                 "polarity": polarity, "anchored": anchored,
             })
-        if status == "supported" and valid_support == 0:
-            deviations.append("downgraded claim without anchored support")
+        needs_support = status in {"supported", "partially_supported", "disputed"}
+        needs_contradiction = status in {"refuted", "disputed"}
+        if (needs_support and valid_support == 0) or (needs_contradiction and valid_contradiction == 0):
+            deviations.append("downgraded claim without status-appropriate anchored evidence")
             status = "unverified"
         item = {
             "id": f"C{len(claims)+1:03d}", "text": text, "status": status,
@@ -155,6 +171,12 @@ def audit(ledger: dict, report: str) -> dict:
             errors.append("unknown report citation " + match)
     if claims and not re.search(r"\[S\d{3,}\]", body):
         warnings.append("analytical report body has no citations")
+    for c in claims:
+        if c["status"] == "supported":
+            support_ids = {e["source_id"] for e in c.get("evidence", [])
+                           if e.get("anchored") and e.get("polarity") == "supports"}
+            if support_ids and not any("[" + sid + "]" in body for sid in support_ids):
+                warnings.append("uncited supported claim: " + c["id"])
     for c in claims:
         if c["status"] == "unverified":
             warnings.append(c["id"] + " remains unverified")

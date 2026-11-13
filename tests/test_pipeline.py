@@ -48,6 +48,17 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertTrue((Path(tmp) / "report.md").exists())
 
+
+    def test_old_report_does_not_survive_failed_rerun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp)
+            (output / "report.md").write_text("STALE PREVIOUS REPORT", encoding="utf-8")
+            cfg = ResearchConfig(question="Missing live credentials", out=tmp)
+            with patch.dict(os.environ, {}, clear=True):
+                result = run_research(cfg)
+            self.assertEqual(result["status"], "failed")
+            self.assertNotIn("STALE PREVIOUS REPORT", (output / "report.md").read_text())
+
     def test_no_full_text_fails_strict(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = json.loads(FIXTURE.read_text())

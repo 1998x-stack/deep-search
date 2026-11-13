@@ -34,6 +34,30 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(audit({"sources": src, "claims": claims}, "Evidence [S001].")["valid"])
         self.assertFalse(audit({"sources": src, "claims": claims}, "Evidence [S999].")["valid"])
 
+
+    def test_status_specific_evidence_gates(self):
+        src = [{"id": "S001", "url": "https://example.org/a",
+                "content": "Only an ambiguous sample is described."}]
+        for status in ("supported", "partially_supported", "disputed", "refuted"):
+            p = {"claims": [{"text": "Claim" + status, "status": status,
+                  "evidence": [{"source_id": "S001", "quote": "ambiguous sample",
+                                "polarity": "supports"}]}]}
+            claims, _ = normalize_claims(p, src)
+            expected = "supported" if status in {"supported", "partially_supported"} else "unverified"
+            if status == "partially_supported":
+                expected = "partially_supported"
+            self.assertEqual(claims[0]["status"], expected)
+
+    def test_exact_long_content_dedup_and_alias(self):
+        src = []
+        long_text = "A repeated original research press release. " * 9
+        add_sources(src, [
+            {"url": "https://example.org/one", "content": long_text},
+            {"url": "https://other.example/one", "content": long_text},
+        ], max_sources=10)
+        self.assertEqual(len(src), 1)
+        self.assertEqual(src[0]["aliases"][0]["reason"], "exact_content")
+
     def test_duplicate_claim(self):
         src = [{"id": "S001", "url": "https://example.org", "content": "X"}]
         data = {"claims": [{"text": "Claim", "status": "unverified", "evidence": []}]}

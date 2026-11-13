@@ -81,6 +81,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
     # Write a sanitized manifest first, even if credential initialization fails.
     _save(root, "config.json", cfg.sanitized())
+    # Reset reports to avoid stale results when a reused output folder fails.
+    _save(root, "report.md", "# Research incomplete\n\nNo validated report was produced.\n")
     try:
         fixture = cfg.load_fixture(cfg.fixture) if cfg.fixture else None
         llm = model if model is not None else create_model(cfg, fixture)
@@ -227,6 +229,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                 report_audit["errors"].append("strict mode requires body citations")
             if any(x["status"] == "failed" for x in search_log):
                 report_audit["errors"].append("strict mode requires no failed search queries")
+            if any("uncited supported claim" in w for w in report_audit["warnings"]):
+                report_audit["errors"].append("strict mode requires body citations for supported claims")
             report_audit["valid"] = not report_audit["errors"]
         _save(root, "audit.json", report_audit)
         manifest["stages"].append("audited")
