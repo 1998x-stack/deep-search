@@ -2,7 +2,8 @@
 
 Field notes from building the `iagent` + Playwright + loguru lanes (2026-11-13).
 Each entry is a symptom → cause → rule. They are cheap to re-read and expensive
-to rediscover.
+to rediscover. §8–§9 were added after a Strict replay latency investigation on
+the embodied-intelligence case (same day).
 
 ## 1. `iagent` model provider
 
@@ -82,6 +83,19 @@ Also: a logging failure must never abort a run — wrap configuration in
 * `_model_payload` fails explicitly when the serialized stage input exceeds
   `max_context_chars`; raising the bound or narrowing scope is preferred to
   silently trimming claims.
+* `--evidence-segment-chars` is an **upper bound**, not a guarantee: the effective
+  size is `min(evidence_segment_chars, (max_context_chars - EVIDENCE - question -
+  3000) / 4)`. Lowering `max_context_chars` to shorten requests can therefore
+  slice segments smaller, produce more batches, and burn `--max-evidence-calls`
+  faster than expected.
+* Lowering `max_context_chars` to buy latency is not free. Synthesis sends the
+  whole claim list plus source excerpts capped at `max_context_chars // 2`, and
+  the entire serialized payload must stay under `max_context_chars`, so a small
+  bound can turn a merely slow evidence stage into a hard synthesis `ValueError`.
+* A claim's citation is only valid where the ledger says so: an evidence entry
+  with polarity `context` does **not** satisfy a claim that requires `supports`,
+  and a body `[Cxxx][Syyy]` pair must be a real binding even if both ids exist
+  elsewhere in the run.
 
 ## 6. When automated search is impossible
 
@@ -106,3 +120,73 @@ fixture's provenance, verbatim.
   pages and arXiv abstracts; verify fetchability *before* building a pool.
 * `runs/` and `.venv/` stay git-ignored; commit discovery **metadata** (fixtures)
   only with provenance, never research outputs.
+* `python` is not on `PATH` here and the system `python3` has no `loguru`
+  (`ModuleNotFoundError: No module named 'loguru'`): invoke
+  `.venv/bin/python algorithms/strict_research.py ...`.
+* Boolean CLI flags are `argparse.BooleanOptionalAction`: pass `--no-log-console`,
+  not `--log-console False` (the parser fails with
+  `unrecognized arguments: False`).
+* `sys.path[0]` is the *script's* directory, not the cwd: a throwaway script in
+  `/tmp` imports `/tmp/inspect.py` instead of the stdlib `inspect`, and
+  `import dataclasses` then dies with `IndexError: list index out of range`.
+  Keep probes in their own directory (or in the repo), never beside unrelated
+  files.
+
+## 8. Stage latency vs. configured budgets (`iagent` evidence stage)
+
+Measured on the same box and endpoint as §1: a *successful* `evidence` call
+costs **37–46 s** (18.5k–29k prompt tokens, 4.1k–6.1k completion tokens; one
+batch of 42.5k–94.8k serialized chars). Batches above 60 s are not exotic — two
+consecutive runs of the same command died there.
+
+| Symptom | Cause | Rule |
+| --- | --- | --- |
+| `WARNING iagent stage=evidence connection error; retrying` ×2, then `ModelError: iagent connection failed after retries`, `status=failed`, while search/fetch artifacts look healthy | A `urlopen` socket timeout, surfaced through the `URLError` branch — the message never says "timeout" | Read it as a timeout, not DNS/auth/TLS. Verify with the wall clock: `retries=2` ⇒ 3 attempts ⇒ roughly `timeout * 3 + 6` s |
+| `Invalid configuration: timeout_seconds out of range (1–60)` and exit code 2 | `ResearchConfig.__post_init__` hard-caps `timeout_seconds` at 60 | You cannot buy headroom from the CLI. Shrink the per-request payload (`--max-context-chars`, `--max-sources`, `--max-fetch`) or raise the cap in `factory/config.py` deliberately |
+| Evidence JSON looks fine but the call still times out | Claim extraction is the most expensive stage: it packs up to `max_context_chars` and may emit up to `max_output_tokens` (cap 8192) | Budget the *slowest* stage, not the average, and keep `--max-evidence-calls` generous enough for a smaller batch size |
+| Everything, including page fetches, got slower after raising `--timeout-seconds` | The same knob is passed to `fetcher(url, timeout=cfg.timeout_seconds)` and fetches run sequentially | 60 s allows up to ~18 min of fetching on an 18-source run. Per-source failures are still recorded as `fetch_error` / `deviations.json` |
+| The identical command passes one run and fails the next | The planner is a model call: queries differ per run, so `--provider replay` matches differently and batch sizes change. `--seed` only seeds local RNG | Treat latency as a distribution. Never diff artifacts across runs by `S00x` — the id → URL mapping moves |
+| A "cheap" run reports `llm_usage.prompt_tokens=124` | Usage only accumulates over calls that actually returned; the failed run counted the planner alone | `run.json.llm_usage` on a `failed` or `incomplete` run is not a cost estimate |
+
+Before choosing budgets, measure. `scripts/probe_model.py` proves credential
+resolution only, not stage latency. Time the real request in a throwaway script
+(build the payload, one paid call), or read `iagent call stage=<s>
+duration_ms=` from `logs/run.log` under `--log-level DEBUG`.
+
+Do **not** patch `factory.iagent_model.urlopen` to sneak a longer socket timeout
+into a run you intend to keep: `config.json` would then record a timeout the run
+did not use. Use such an override to *measure*, never to produce an artifact.
+
+## 9. Reading artifacts after a failure or an `incomplete`
+
+* A failed run still writes `plan.json`, `sources.json`, `coverage.json`,
+  `ledger.json` and `logs/`; `sources.json` can be hundreds of KB of real
+  fetched text. Always start from `run.json.status` / `stop_reason` and never
+  infer success from an artifact's existence or size.
+* After an evidence-stage failure, `coverage.json.summary` lists every source in
+  `unprocessed_source_ids` with `processed_segments: 0`. A source is marked
+  processed only after the model returned a structurally valid claim list **and**
+  the local provenance normalizer accepted it.
+* Coverage completeness and fetch success are separate axes:
+  `all_retrieved_text_processed: true` coexists with
+  `unavailable_source_ids: ["S005"]` and `deviations.json: "full text fetch
+  failed for S005"`. A fetch failure is not "unprocessed text"; read both fields.
+* `upstream_truncated_source_ids` flags sources whose *original page* was longer
+  than the 35,000-char fetcher excerpt. Such a source still counts as fully
+  processed (its retrieved excerpt was segmented end to end), so
+  `all_retrieved_text_processed` can be `true` while this list is non-empty.
+  Read it as "our review was bounded", not as "the page was complete".
+* `citation_map.valid=false`, `audit.readiness.ready=true` and
+  `run.json.status=incomplete` are a *legitimate* combination: `readiness`
+  covers anchored-evidence readiness, `valid` covers the strict per-claim
+  in-body citation audit, and `status` follows the latter. `ready=true` is not
+  completion.
+* Claim-binding errors to expect:
+  * `citation Cxxx/Syyy lacks status-appropriate anchored evidence` — the claim
+    requires `supports` but that source's evidence polarity is `context`, or the
+    body cites a `[Cxxx][Syyy]` pair that is not a real binding;
+  * `claim Cxxx missing supports-bound report citation` — the ledger holds
+    anchored support but the body never cites that claim;
+  * `N quote bindings rejected: absent from submitted segments` in
+    `deviations.json` — the extractor returned a quote that was not in the batch
+    actually sent.

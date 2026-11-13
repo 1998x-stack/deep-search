@@ -92,14 +92,24 @@ stable original-content offsets/hashes. `--max-evidence-calls 24` bounds
 model extraction calls across all rounds. Each request still obeys
 `--max-context-chars` including system instructions.
 
+On the `iagent` lane, budget for latency, not just size: a successful evidence
+call costs 37–46 s here, while `--timeout-seconds` is hard-capped at 60 s, so one
+oversized batch fails the whole run with a misleading "connection error".
+`--timeout-seconds` also governs each page fetch, sequentially. Measure before
+choosing budgets — see [gotchas §8–§9](gotchas.md).
+
 After a run, inspect:
 - `coverage.json.summary.all_retrieved_text_processed` and
-  `coverage.json.summary.upstream_truncated_source_ids`;
+  `coverage.json.summary.upstream_truncated_source_ids` — and
+  `unavailable_source_ids` alongside them, since a failed fetch is not
+  "unprocessed text";
 - `citation_map.json.valid`, `bindings[].claim_id`,
   `bindings[].source_id`, `bindings[].line`, `bindings[].quote_evidence`;
 - `run.json.discovery_scope` for `open_world`, `fixed_corpus` or
   `synthetic_fixture`; `run.json.discovery_pool_remaining` for replay;
-- `audit.json.valid` and `run.json.status` for final structural completion.
+- `audit.json.valid`, `audit.json.readiness.ready` and `run.json.status` for
+  final structural completion. `ready=true` alone is not completion:
+  `valid=false` still yields `incomplete`.
 
 A v0.3 report with standalone `[S001]` cites is not a valid v0.4 Strict
 report; re-run synthesis against the current cited claims. The existing
