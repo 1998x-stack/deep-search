@@ -86,15 +86,18 @@ def normalize_claims(payload: dict, sources: list[dict], existing: list[dict] | 
     if not isinstance(payload, dict) or not isinstance(payload.get("claims"), list):
         raise ValueError("evidence LLM response must contain claims array")
     source_map = {src["id"]: src for src in sources}
-    claims = list(existing or [])
-    already = {fold(c["text"]) for c in claims}
+    # Copy prior ledger entries because new batches may add independent
+    # corroborating/contradicting quotations to an existing atomic claim.
+    claims = [{**c, "evidence": list(c.get("evidence", []))}
+              for c in (existing or [])]
+    by_text = {fold(c["text"]): c for c in claims}
     deviations = []
     for raw in payload["claims"]:
         if not isinstance(raw, dict):
             deviations.append("non-object claim ignored")
             continue
         text = str(raw.get("text", "")).strip()
-        if not text or fold(text) in already:
+        if not text:
             continue
         raw_status = str(raw.get("status", "unverified")).lower()
         status = raw_status if raw_status in STATUSES else "unverified"
@@ -135,8 +138,35 @@ def normalize_claims(payload: dict, sources: list[dict], existing: list[dict] | 
             "id": f"C{len(claims)+1:03d}", "text": text, "status": status,
             "analysis": str(raw.get("analysis", ""))[:3000], "evidence": items,
         }
+        duplicate = by_text.get(fold(text))
+        if duplicate is not None:
+            known = {(e.get("source_id"), fold(str(e.get("quote", ""))),
+                      e.get("polarity")) for e in duplicate.get("evidence", [])}
+            added = 0
+            for e in items:
+                key = (e["source_id"], fold(e["quote"]), e["polarity"])
+                if key not in known:
+                    duplicate["evidence"].append(e)
+                    known.add(key)
+                    added += 1
+            # A new explicit contradictory passage for the *identical text*
+            # must not be silently discarded or hidden behind the first label.
+            has_support = any(
+                e.get("anchored") and e.get("polarity") == "supports"
+                for e in duplicate["evidence"])
+            has_contradiction = any(
+                e.get("anchored") and e.get("polarity") == "contradicts"
+                for e in duplicate["evidence"])
+            if has_support and has_contradiction:
+                duplicate["status"] = "disputed"
+            elif duplicate["status"] == "unverified" and status != "unverified":
+                duplicate["status"] = status
+            if added:
+                deviations.append("merged " + str(added) +
+                                  " new quotations into existing atomic claim")
+            continue
         claims.append(item)
-        already.add(fold(text))
+        by_text[fold(text)] = item
     return claims, deviations
 
 
