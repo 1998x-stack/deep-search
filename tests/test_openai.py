@@ -42,9 +42,23 @@ class OpenAITests(unittest.TestCase):
         self.assertEqual(req.full_url, "https://api.openai.com/v1/responses")
         body = json.loads(req.data)
         self.assertEqual(body["model"], "gpt-6")
-        self.assertEqual(body["text"]["format"], {"type": "json_object"})
+        self.assertEqual(body["text"]["format"]["type"], "json_schema")
+        self.assertTrue(body["text"]["format"]["strict"])
+        self.assertEqual(body["text"]["format"]["name"], "research_planner")
         self.assertFalse(body["store"])
         self.assertNotIn("test-private-key", json.dumps(body))
+
+    def test_unknown_stage_keeps_json_object_fallback(self):
+        from factory.response_schemas import format_for_stage
+        self.assertEqual(format_for_stage("connectivity"), {"type": "json_object"})
+
+    def test_all_role_schemas_have_required_fields(self):
+        from factory.response_schemas import SCHEMAS
+        self.assertEqual(set(SCHEMAS), {"planner", "evidence", "critic"})
+        for name, schema in SCHEMAS.values():
+            self.assertEqual(schema["type"], "object")
+            self.assertFalse(schema["additionalProperties"])
+            self.assertEqual(set(schema["required"]), set(schema["properties"]))
 
     def test_plain_text_output(self):
         out = json.dumps(envelope("A finding with caveats."))

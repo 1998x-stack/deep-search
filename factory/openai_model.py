@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 
 from .config import ResearchConfig
 from .models import ModelError, RETRYABLE
+from .response_schemas import format_for_stage
 
 
 class OpenAIResponsesModel:
@@ -31,9 +32,8 @@ class OpenAIResponsesModel:
             "store": False,
         }
         if json_mode:
-            # JSON mode is broadly supported; schema-validated outputs are a future extension.
-            # The instructions must explicitly request JSON, as required by the API.
-            payload["text"] = {"format": {"type": "json_object"}}
+            # Strict JSON schemas for known roles, JSON object fallback for health checks.
+            payload["text"] = {"format": format_for_stage(stage)}
         request = Request(
             self.endpoint,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),

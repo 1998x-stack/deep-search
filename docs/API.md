@@ -20,7 +20,7 @@ Reference: https://api-docs.deepseek.com/api/create-chat-completion/
 - Select with `--llm openai` and set `OPENAI_API_KEY`.
 - Default `OPENAI_MODEL=gpt-6`; model access depends on API account. Custom HTTPS endpoint: `OPENAI_BASE_URL`, default `https://api.openai.com/v1`.
 - `POST /responses` accepts `instructions`, `input`, `model`, `max_output_tokens`, `store=false`.
-- For JSON tasks use `text.format={"type":"json_object"}`; inspect `status=completed` and extract `output[].content[]` items with `type=output_text`.
+- For Planner, Evidence and Critic use strict `text.format.type=json_schema` with explicit field contracts from `factory/response_schemas.py`; other JSON-mode stages use `json_object`. Inspect `status=completed` and extract `output[].content[]` items with `type=output_text`.
 - Only completed model responses are trusted as successfully returned output; JSON and schema validity are checked by the downstream pipeline.
 - This project does not assume that all accounts can invoke `gpt-6`. Model and token budget are explicit options.
 
