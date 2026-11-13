@@ -31,6 +31,7 @@ SCHEMA_VERSION = "1.0"
 PROVIDER_NAME = "operator_imported_discovery"
 REQUIRED_PROVENANCE = ("collected_by", "collected_at", "collection_tool")
 QUERY_HINTS = ("queries", "results_by_query")
+MIN_LEXICAL_SCORE = 1  # Zero lexical overlap must never be treated as a match.
 CJK = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
 TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -105,9 +106,26 @@ class ReplaySearch:
         self.cfg = cfg
         self.payload = payload
         self.provenance = payload["provenance"]
-        self.by_query = {str(k): v for k, v in (payload.get("queries") or {}).items()
-                         if isinstance(v, list)}
-        self.pool = [item for item in (payload.get("pool") or []) if isinstance(item, dict)]
+        # Both accepted keyed formats and the flat pool are executable, not
+        # merely accepted by load_discovery_list(). Deduplicate source URLs.
+        self.by_query: dict[str, list[dict]] = {}
+        for key in QUERY_HINTS:
+            block = payload.get(key)
+            if isinstance(block, dict):
+                for query, rows in block.items():
+                    if isinstance(rows, list):
+                        self.by_query.setdefault(str(query), []).extend(
+                            row for row in rows if isinstance(row, dict))
+        seen: set[str] = set()
+        self.pool: list[dict] = []
+        for item in _entries(payload):
+            url = str(item["url"])
+            if url not in seen:
+                self.pool.append(item)
+                seen.add(url)
+        self.fixed_corpus = True
+        self.open_world_discovery = False
+        self.pool_total = len(self.pool)
         self._served: set[str] = set()
         logger.bind(stage="search").info(
             "operator-imported discovery list: {} pool entries, provenance={}",
@@ -119,7 +137,9 @@ class ReplaySearch:
         if not 1 <= num <= 100:
             raise ValueError("discovery list result cap is 1–100")
         candidates = self._candidates(query)
-        ranked = sorted(candidates, key=lambda item: (-item[0], item[1]["url"]))
+        ranked = sorted(
+            (item for item in candidates if item[0] >= MIN_LEXICAL_SCORE),
+            key=lambda item: (-item[0], item[1]["url"]))
         results = []
         for _, item in ranked:
             url = str(item["url"])
@@ -137,15 +157,26 @@ class ReplaySearch:
             if len(results) >= num:
                 break
         if not results:
-            logger.bind(stage="search").debug(
-                "discovery list exhausted or no overlap for this query")
+            logger.bind(stage="search").info(
+                "fixed replay corpus has no unserved lexical match for query")
         return results
+
+    @property
+    def remaining(self) -> int:
+        return sum(str(item["url"]) not in self._served for item in self.pool)
+
+    @property
+    def exhausted(self) -> bool:
+        return self.remaining == 0
 
     def _candidates(self, query: str) -> list[tuple[int, dict]]:
         exact = []
         for key, items in self.by_query.items():
             if key != "*" and (key in query or query in key):
                 exact.extend(item for item in items if isinstance(item, dict))
+        # An exact query bucket constrains the candidate set where supplied.
+        # The same items are also present in self.pool to ensure all accepted
+        # input formats remain searchable.
         rows = exact or self.pool
         terms = query_terms(query)
         scored = []
