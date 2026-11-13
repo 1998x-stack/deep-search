@@ -73,13 +73,13 @@ class EvidenceTests(unittest.TestCase):
     def test_readiness_rejects_empty_ledger_and_bibliography_only(self):
         src = [{"id": "S001", "url": "https://example.org", "content": "Text about event"}]
         self.assertFalse(assess_research_readiness({"sources": src, "claims": []},
-                         "Summary.\\n## Sources\\n[S001]")["ready"])
+                         "Summary.\n## Sources\n[S001]")["ready"])
         claim = {"id": "C001", "text": "Event", "status": "supported",
                  "evidence": [{"source_id": "S001", "quote": "about event",
                                "polarity": "supports", "anchored": True}]}
         self.assertFalse(assess_research_readiness(
             {"sources": src, "claims": [claim]},
-            "No actual citations.\\n## Sources\\n[S001]")["ready"])
+            "No actual citations.\n## Sources\n[S001]")["ready"])
         self.assertTrue(assess_research_readiness(
             {"sources": src, "claims": [claim]}, "Evidence [S001].")["ready"])
 

@@ -168,7 +168,7 @@ def audit(ledger: dict, report: str) -> dict:
         if c["status"] == "supported" and not valid_support:
             errors.append("unsupported supported status in " + c["id"])
     # Only inspect analytical body; source index is appended by engine later.
-    body = report.split("\n## Sources\n", 1)[0]
+    body = re.split(r"(?m)^## Sources[ \t]*$", report, maxsplit=1)[0]
     for match in re.findall(r"\[S\d{3,}\]", body):
         if match[1:-1] not in sids:
             errors.append("unknown report citation " + match)
@@ -219,7 +219,7 @@ def assess_research_readiness(ledger: dict, report: str) -> dict:
             anchored_claims += 1
             qualifying_sources.update(support | contradict)
 
-    body = report.split("\n## Sources\n", 1)[0]
+    body = re.split(r"(?m)^## Sources[ \t]*$", report, maxsplit=1)[0]
     cited = {sid for sid in qualifying_sources if "[" + sid + "]" in body}
     errors = []
     if not anchored_claims:
