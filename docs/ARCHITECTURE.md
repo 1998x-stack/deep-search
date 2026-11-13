@@ -10,7 +10,7 @@
 | Evidence | factory/evidence.py | source provenance, dedup, quotation audit |
 | Research | factory/prompts.py, factory/pipeline.py | planning, research, critique, reflection, synthesis |
 | Entrypoints | algorithms/*.py | explicit CleanRL-style loops and CLI |
-| QA | tests/, .github/workflows/ci.yml | deterministic tests without live billing |
+| QA | tests/, benchmarks/offline_eval.py, .github/workflows/ci.yml | deterministic tests / synthetic benchmarks without live billing |
 | Runtime output | runs/ | plan, search, sources, ledger, report, audit, deviations |
 
 ## Workflow

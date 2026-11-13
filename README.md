@@ -2,7 +2,7 @@
 
 Evidence-first deep research, implemented with a CleanRL-inspired **explicit algorithm script** and small **provider factories**. This branch began from an empty file tree; its initial empty-tree commit still has main as a parent, so Git history is not orphaned.
 
-[中文](README.zh.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Runbook](docs/OPERATIONS.md) | [Skill](SKILL.md)
+[中文](README.zh.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Skill](SKILL.md)
 
 ## Running
 
@@ -11,6 +11,7 @@ Requires Python 3.10+. No required third-party packages.
 ~~~bash
 python -m pip install -e .
 python -m unittest discover -s tests -v
+python benchmarks/offline_eval.py --out runs/evals
 python algorithms/deep_research.py --question "Synthetic library opening" --provider mock --llm mock --fixture examples/offline_fixture.json --out runs/demo
 ~~~
 

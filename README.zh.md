@@ -18,6 +18,7 @@ python -m pip install -e .
 python algorithms/deep_research.py --question "虚构图书馆何时建成" \
   --provider mock --llm mock --fixture examples/offline_fixture.json --out runs/demo
 python -m unittest discover -s tests -v
+python benchmarks/offline_eval.py --out runs/evals
 ~~~
 
 联网需配置 `DEEPSEEK_API_KEY`、`GOOGLE_API_KEY`、`GOOGLE_CSE_ID`。无需写入任何实际密钥到仓库。DeepSeek 模型默认 `deepseek-flash`，对应 V4.1-Flash-1017。
@@ -31,5 +32,5 @@ Google Custom Search JSON API 面临 2027-01-01 迁移截止，因此搜索接�
 
 联网连接测试：设置好环境变量后显式运行 `python scripts/live_smoke.py --live`（仅检查接口形态，不检验事实准确性）。运行时能力清单写入 `capabilities.json`。
 
-阅读 [设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[运行手册](docs/OPERATIONS.md)。
+阅读 [设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md) 与 [运行手册](docs/OPERATIONS.md)。
 

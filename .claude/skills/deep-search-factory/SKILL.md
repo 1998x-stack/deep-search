@@ -8,6 +8,10 @@ license: MIT
 
 Start at repository root. This Skill orchestrates the **real Python research runner**, not a hypothetical LLM role-play. Only claim that a provider or test ran if logs prove it.
 
+## Master research logic
+
+Read `prompts/master.md` for the full planning → search → evidence → critique → replan → synthesis → audit contract. Use `factory/prompts.py` for model role instructions. The master is guidance, not a second runtime or a fact checker.
+
 ## Workflow
 
 1. Review user question, scope and current date. Treat the premise as a hypothesis.
@@ -35,6 +39,7 @@ Respect copyrights, privacy and legal access controls.
 - `docs/OPERATIONS.md`: execution, artifacts and API configuration.
 - `factory/prompts.py`: five logical agent phases.
 - `tests/`: offline reproducibility checks.
+- `benchmarks/offline_eval.py`: fixed synthetic structural evaluation; no factual-accuracy claims.
 
 ## Adapters
 
