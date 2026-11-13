@@ -34,6 +34,10 @@ Never repeat already attempted searches. Your proposal will be independently che
 against hard budgets, query novelty and measured stagnation before execution.
 Require strong evidence for primary assertions. Seek counterevidence, independent origins,
 time/version checks and alternative causal explanations. Do not invent search results.
+If search_capability.discovery_scope is "fixed_corpus", you can only re-rank
+the imported discovery list; no new web search occurs. Do not claim that
+a replay query discovers fresh online sources. When the fixed corpus is
+exhausted, stop and explain the unresearched gaps.
 If remaining budget is exhausted, stop and disclose uncertainty.
 """
 

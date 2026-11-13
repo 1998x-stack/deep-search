@@ -390,6 +390,12 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                     "claims": claims, "metrics": asdict(observation),
                     "attempted_queries": sorted(attempted_queries),
                     "budget": plan["budget"], "previous_reflection": reflection_log[-2:],
+                    "search_capability": {
+                        "discovery_scope": manifest["discovery_scope"],
+                        "fixed_corpus_remaining": (
+                            getattr(web, "remaining", None)
+                            if cfg.provider == "replay" else None),
+                    },
                 }, limit=cfg.max_context_chars, stage="critic",
                    instructions=CRITIC),
                 json_mode=True,
@@ -408,11 +414,17 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                 round_number, decision.action, decision.reason,
                 len(critique.get("next_queries") or []), len(decision.next_queries),
                 len(critique.get("gaps") or []), len(critique.get("contradictions") or []))
+            if (cfg.provider == "replay" and getattr(web, "exhausted", False)
+                    and decision.action == "continue"):
+                from .reflection import Decision
+                decision = Decision("stop", "fixed_corpus_exhausted", (),
+                                    decision.stalled_rounds)
             stalled_rounds = decision.stalled_rounds
             critique_log.append({"round": round_number, **critique})
             reflection_log.append({
                 "round": round_number,
                 "observation": asdict(observation),
+                "discovery_scope": manifest["discovery_scope"],
                 "proposal": critique,
                 "decision": decision.as_dict(),
             })
@@ -523,6 +535,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             report_audit = {"valid": False, "errors": ["execution failed before report"],
                             "warnings": []}
     finally:
+        if cfg.provider == "replay" and "web" in locals():
+            manifest["discovery_pool_remaining"] = getattr(web, "remaining", None)
+            manifest["discovery_pool_exhausted"] = bool(getattr(web, "exhausted", False))
         manifest["llm_usage"] = _usage_snapshot(locals().get("llm")) or manifest.get("llm_usage", {})
         # Files are created independently, including on early failure.
         for filename, value in (
