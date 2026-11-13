@@ -23,5 +23,7 @@
   "log_level": "INFO",
   "log_json": true,
   "log_console": true,
-  "search_fixture": "fixtures/embodied-intelligence-chain-discovery.json"
+  "search_fixture": "fixtures/embodied-intelligence-chain-discovery.json",
+  "max_evidence_calls": 24,
+  "evidence_segment_chars": 6000
 }

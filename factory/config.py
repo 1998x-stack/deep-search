@@ -52,6 +52,8 @@ class ResearchConfig:
     strict: bool = False
     max_output_tokens: int = 1800
     max_context_chars: int = 48_000
+    max_evidence_calls: int = 24
+    evidence_segment_chars: int = 6000
     timeout_seconds: int = 20
     retries: int = 2
     seed: int = 42
@@ -101,6 +103,10 @@ class ResearchConfig:
             raise ValueError("iagent max_output_tokens must be at least 512")
         if self.log_level not in LOG_LEVELS:
             raise ValueError("log_level must be one of " + ", ".join(LOG_LEVELS))
+        if not 1 <= self.max_evidence_calls <= 128:
+            raise ValueError("max_evidence_calls must be 1–128")
+        if not 512 <= self.evidence_segment_chars <= 12000:
+            raise ValueError("evidence_segment_chars must be 512–12000")
         if not 5_000 <= self.max_context_chars <= 160_000:
             raise ValueError("max_context_chars must be 5000–160000")
         if not 0 <= self.retries <= 4:
@@ -151,6 +157,8 @@ class ResearchConfig:
             fetch_pages=a.fetch_pages, strict=a.strict,
             max_output_tokens=a.max_output_tokens,
             max_context_chars=a.max_context_chars,
+            max_evidence_calls=a.max_evidence_calls,
+            evidence_segment_chars=a.evidence_segment_chars,
             timeout_seconds=a.timeout_seconds, retries=a.retries,
             seed=a.seed, fixture=a.fixture,
             search_fixture=getattr(a, "search_fixture", None),

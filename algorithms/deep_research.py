@@ -63,6 +63,10 @@ def parser_for(argv: list[str] | None = None):
     p.add_argument("--strict", action=argparse.BooleanOptionalAction, default=defaults["strict"])
     p.add_argument("--max-output-tokens", type=int, default=defaults["max_output_tokens"])
     p.add_argument("--max-context-chars", type=int, default=defaults.get("max_context_chars", 48_000))
+    p.add_argument("--max-evidence-calls", type=int,
+                   default=defaults.get("max_evidence_calls", 24))
+    p.add_argument("--evidence-segment-chars", type=int,
+                   default=defaults.get("evidence_segment_chars", 6000))
     p.add_argument("--timeout-seconds", type=int, default=defaults["timeout_seconds"])
     p.add_argument("--retries", type=int, default=defaults["retries"])
     p.add_argument("--seed", type=int, default=defaults["seed"])

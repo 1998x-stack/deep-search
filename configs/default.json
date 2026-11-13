@@ -18,5 +18,7 @@
   "browser_engine": "bing",
   "reflection_patience": 2,
   "reflection_similarity_threshold": 0.92,
-  "max_context_chars": 48000
+  "max_context_chars": 48000,
+  "max_evidence_calls": 24,
+  "evidence_segment_chars": 6000
 }

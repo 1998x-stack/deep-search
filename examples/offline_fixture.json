@@ -66,7 +66,7 @@
         "rationale": "Synthetic demonstration completed"
       }
     ],
-    "synthesis": "# Synthetic research report\n\n## Executive Summary\nThe fictional library opened in 2020 [S001], not 2019 [S002].\n\n## Limitations\nAll evidence is synthetic; this report must not be used to establish real events."
+    "synthesis": "# Synthetic research report\n\n## Executive Summary\nThe fictional library opened in 2020 [C001][S001], not 2019 [C002][S002].\n\n## Limitations\nAll evidence is synthetic; this report must not be used to establish real events."
   },
   "search_results": {
     "fictional library official notice": [
