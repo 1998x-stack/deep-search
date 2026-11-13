@@ -65,3 +65,21 @@ full-text-anchored claim and a corresponding citation in report **body** in
 all modes. A valid structural quote is not a semantic/factual guarantee.
 `--max-context-chars` caps serialized model input; excerpts are tagged if
 truncated. See `docs/REVIEW-2026-11-13.md`.
+
+
+## v0.4 Reliability gates (must inspect)
+
+- Run `--fetch-pages` for genuine HTML evidence. Source excerpts are processed
+  in bounded batches; inspect `coverage.json` before saying a source was
+  reviewed. A `model_processed` record is evidence of model submission, not
+  proof of semantic understanding. Check `fetch_truncated` separately.
+- Strict Mode requires adjacent `[C001][S001]` claim/source pairs with
+  status-appropriate anchored quotations. Inspect `citation_map.json`, not
+  merely `audit.valid`. No implication of semantic entailment or independent
+  corroboration.
+- Replay is **fixed-corpus re-ranking**, never an open-web search result.
+  Report `discovery_scope=fixed_corpus`, pool exhaustion and unanswered
+  research gaps. Reject zero lexical overlap.
+- Budgets: `--max-evidence-calls 24`, `--evidence-segment-chars 6000`,
+  `--max-context-chars 48000`; no unbounded automated retry.
+- See `docs/EVIDENCE-RELIABILITY-V04.md` for examples and the upgrade contract.

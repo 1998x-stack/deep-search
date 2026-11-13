@@ -83,3 +83,27 @@ Reducing scope or raising the bounded limit (maximum 160000 chars) is safer
 than silently dropping unreviewed claims.
 
 See `docs/REVIEW-2026-11-13.md` for unresolved network-fetch risks.
+
+
+## v0.4 evidence and citation runbook
+
+`--evidence-segment-chars 6000` controls source excerpt splitting, with
+stable original-content offsets/hashes. `--max-evidence-calls 24` bounds
+model extraction calls across all rounds. Each request still obeys
+`--max-context-chars` including system instructions.
+
+After a run, inspect:
+- `coverage.json.summary.all_retrieved_text_processed` and
+  `coverage.json.summary.upstream_truncated_source_ids`;
+- `citation_map.json.valid`, `bindings[].claim_id`,
+  `bindings[].source_id`, `bindings[].line`, `bindings[].quote_evidence`;
+- `run.json.discovery_scope` for `open_world`, `fixed_corpus` or
+  `synthetic_fixture`; `run.json.discovery_pool_remaining` for replay;
+- `audit.json.valid` and `run.json.status` for final structural completion.
+
+A v0.3 report with standalone `[S001]` cites is not a valid v0.4 Strict
+report; re-run synthesis against the current cited claims. The existing
+embodied-intelligence case document records the **historical** local run,
+not a fresh quality verification of this version.
+
+See [v0.4 contract](EVIDENCE-RELIABILITY-V04.md).

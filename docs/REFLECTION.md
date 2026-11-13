@@ -100,3 +100,22 @@ Critic requested a stop or research budgets were exhausted.
 This distinction prevents the loop's stop decision from being conflated
 with a factual-quality or source-coverage assurance. See the code audit
 record and tests.
+
+
+## v0.4: evidence coverage and fixed-corpus observability
+
+`reflection.json` now includes a `discovery_scope` for each decision. Critic
+receives whether it is searching a live provider or re-ranking a fixed
+operator-imported corpus. When the Replay provider runs out of unseen URLs,
+code stops continuation as `fixed_corpus_exhausted`.
+
+Before the final audit, the model must successfully process each segment of
+retrieved source text. `coverage.json` records this progress; incomplete
+segment coverage blocks completion rather than silently dropping sources.
+Strict Mode further requires valid adjacent `[Cxxx][Sxxx]` claim/source
+references backed by the ledger's exact quotations. Refer to
+[Evidence Reliability v0.4](EVIDENCE-RELIABILITY-V04.md).
+
+Stopping research with `critic_requested_stop` remains only a decision about
+search budget, never proof that all questions were answered or the resulting
+claims are true.

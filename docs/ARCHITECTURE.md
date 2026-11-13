@@ -5,9 +5,9 @@
 | Config | factory/config.py, configs/*.json | limits, seeds, runtime parameters |
 | Capabilities | factory/capabilities.py | explicit available/missing/manual capability state |
 | Model factory | factory/models.py, factory/openai_model.py | DeepSeek Chat Completions, OpenAI Responses, mock |
-| Search factory | factory/search.py, factory/playwright_search.py | Google CSE, Playwright browser, mock |
+| Search factory | factory/search.py, factory/playwright_search.py, factory/replay_search.py | Google CSE, Playwright browser, fixed-corpus Replay, mock |
 | Fetch | factory/fetch.py | opt-in, bounded public HTML retrieval |
-| Evidence | factory/evidence.py | source provenance, dedup, quotation audit |
+| Evidence | factory/evidence.py, factory/coverage.py, factory/citation_audit.py | per-source segmented model processing, claim/source pairs, structural audit |
 | Research | factory/prompts.py, factory/pipeline.py, factory/reflection.py | planning, deterministic observe/decide loop, critique and synthesis |
 | Entrypoints | algorithms/*.py | explicit CleanRL-style loops and CLI |
 | QA | tests/, benchmarks/offline_eval.py, .github/workflows/ci.yml | deterministic tests / synthetic benchmarks without live billing |

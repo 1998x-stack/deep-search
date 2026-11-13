@@ -68,3 +68,13 @@ python algorithms/strict_research.py --config configs/cases/embodied-intelligenc
 - 通过 `--max-context-chars 48000` 限制每次传给模型的总序列化输入。过长则清楚失败并保留产物，而不是无上限消耗 Token；来源只发送标明截断的摘录。
 
 这些只是**工程完整性与引用结构检查**，不是自动事实认证。见 [完整审计记录](docs/REVIEW-2026-11-13.md)。
+
+
+## v0.4：逐来源证据处理、严格引用、固定语料检索
+
+- **逐来源真正进入模型输入**：正文按带字符偏移及 SHA-256 的片段分段、分批送往模型。`coverage.json` 保存每个来源的处理片段、实际提交字符数、漏处理项和上游抓取截断标志。`model_processed` 只表示片段经成功请求提交，不保证模型语义理解或事实正确。
+- **严格引用绑定**：Strict 报告必须使用 `[C001][S001]` 这样的相邻论断/来源编号。`citation_map.json` 检验每对编号在台账中的真实锚点、支持/反驳方向、行号及字符位置；漏引、错引及仅在参考文献出现的引用均不能通过。它仍**不能**自动证明语义蕴含关系。
+- **Replay 明确属于封闭语料**：支持 `pool / queries / results_by_query` 输入，拒绝词面零相关结果，`run.json.discovery_scope=fixed_corpus`，语料耗尽时停止循环；不声称获得新的联网搜索结果。
+- **成本与完整性**：新增 `--max-evidence-calls`（默认 24）与 `--evidence-segment-chars`（默认 6000）。任一已获取片段未分析、或网页原文在抓取器处被截断，Strict 将标记 `incomplete`；旧 v0.3 案例未重新实测，不能沿用其成功结论。
+
+详见 [Evidence Reliability v0.4 完整设计](docs/EVIDENCE-RELIABILITY-V04.md)。

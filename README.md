@@ -2,7 +2,7 @@
 
 Evidence-first deep research, implemented with a CleanRL-inspired **explicit algorithm script** and small **provider factories**. This branch began from an empty file tree; its initial empty-tree commit still has main as a parent, so Git history is not orphaned.
 
-[中文](README.zh.md) | [Reflection Loop](docs/REFLECTION.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Logging](docs/LOGGING.md) | [Gotchas](docs/gotchas.md) | [Case study](docs/CASE-EMBODIED-INTELLIGENCE.md) | [Skill](SKILL.md)
+[中文](README.zh.md) | [Evidence reliability v0.4](docs/EVIDENCE-RELIABILITY-V04.md) | [Reflection Loop](docs/REFLECTION.md) | [Architecture](docs/ARCHITECTURE.md) | [API](docs/API.md) | [Master prompt](prompts/master.md) | [Offline evals](evals/README.md) | [Logging](docs/LOGGING.md) | [Gotchas](docs/gotchas.md) | [Case study](docs/CASE-EMBODIED-INTELLIGENCE.md) | [Skill](SKILL.md)
 
 ## Running
 
@@ -102,3 +102,22 @@ The direct Python API `ResearchConfig(question="...", llm="openai")` now
 chooses the same OpenAI model/endpoint defaults as the CLI. See
 [review record](docs/REVIEW-2026-11-13.md).
 
+
+
+## v0.4: explicit source processing and claim-specific citations
+
+Every available retrieved text is processed in stable, offset-backed segments,
+bounded by `--evidence-segment-chars` (default 6000), `--max-evidence-calls`
+(default 24), and per-request `--max-context-chars`. `coverage.json` records
+which segments actually entered successful evidence calls; `model_processed` is
+not a guarantee of comprehension. HTML text truncated at the upstream 35k-char
+extractor limit is separately recorded and fails Strict readiness.
+
+Strict reports must bind claims to actual supporting/contradicting source quotes
+as adjacent `[C001][S001]` references, audited in `citation_map.json` with line
+numbers and offsets. Existing v0.3 reports using standalone `[S001]` citations
+are historical artifacts, not valid v0.4 Strict reports.
+
+Replay is explicitly `fixed_corpus`, not an open-web search provider. Zero
+lexical-overlap results are rejected, and a drained pool stops Reflection.
+See [v0.4 design and limitations](docs/EVIDENCE-RELIABILITY-V04.md).

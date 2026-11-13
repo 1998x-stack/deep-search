@@ -36,3 +36,17 @@
 - Bibliography-only citations must not count as in-body support.
 - Keep all new failure cases in regression tests. Real API integration and
   SSRF egress hardening remain separate work.
+
+
+## Evidence reliability v0.4 (breaking Strict output contract)
+
+- Each model-processed source must have complete segment coverage in
+  `coverage.json`; do not equate fetched with processed or understood.
+- Every parsed quote must belong to a segment actually sent in that evidence
+  call. Upstream HTML 35k-character truncation must be flagged.
+- Strict references are paired `[Cxxx][Sxxx]` with claim-specific quote and
+  correct polarity; preserve exact binding offsets in `citation_map.json`.
+- `model_processed` and `citation_map.valid` are structural observations,
+  not model comprehension or semantic factual validity.
+- Replay is `fixed_corpus` and cannot claim new information from fresh queries.
+- Extend adversarial tests and keep all three Skill mirrors byte-identical.
