@@ -114,5 +114,8 @@ def create_model(cfg: ResearchConfig, fixture: dict | None = None):
     if cfg.llm == "openai":
         from .openai_model import OpenAIResponsesModel
         return OpenAIResponsesModel(cfg)
+    if cfg.llm == "iagent":
+        from .iagent_model import IAgentChatModel
+        return IAgentChatModel(cfg)
     raise ModelError("Unsupported model provider")
 

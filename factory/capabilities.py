@@ -23,14 +23,32 @@ def resolve_capabilities(cfg: ResearchConfig) -> list[dict]:
         name = spec["name"]
         if name == "llm_reasoning":
             provider = cfg.llm
-            key = "OPENAI_API_KEY" if cfg.llm == "openai" else "DEEPSEEK_API_KEY"
-            enabled = cfg.llm == "mock" or bool(os.getenv(key))
-            status = "configured" if enabled else "missing_credentials"
+            if cfg.llm == "iagent":
+                from .pi_config import availability as pi_availability
+                state = pi_availability("iagent", cfg.model)
+                enabled = state["status"] == "configured"
+                status = state["status"]
+                extra = {"key_source": state.get("key_source"),
+                         "config_path": state.get("config_path")}
+            else:
+                key = "OPENAI_API_KEY" if cfg.llm == "openai" else "DEEPSEEK_API_KEY"
+                enabled = cfg.llm == "mock" or bool(os.getenv(key))
+                status = "configured" if enabled else "missing_credentials"
+                extra = {}
         elif name == "broad_web_search":
             provider = cfg.provider
             if cfg.provider == "playwright":
-                enabled = find_spec("playwright") is not None
-                status = "configured" if enabled else "missing_dependency"
+                installed = find_spec("playwright") is not None
+                browser = _chromium_present()
+                enabled = installed and browser
+                status = ("configured" if enabled
+                          else "missing_browser" if installed else "missing_dependency")
+            elif cfg.provider == "replay":
+                # Imported discovery lists contain real URLs but are not an
+                # automated search API; the manifest records the provenance.
+                enabled = bool(cfg.search_fixture)
+                status = "configured" if enabled else "missing_discovery_list"
+                extra = {"discovery_mode": "operator_imported"}
             else:
                 enabled = cfg.provider == "mock" or (
                     bool(os.getenv("GOOGLE_API_KEY")) and bool(os.getenv("GOOGLE_CSE_ID")))
@@ -49,7 +67,17 @@ def resolve_capabilities(cfg: ResearchConfig) -> list[dict]:
             status = "available"
         capabilities.append({
             "name": name, "provider": provider, "required": bool(spec.get("required")),
-            "status": status, "enabled": enabled,
+            "status": status, "enabled": enabled, **extra,
         })
     return capabilities
+
+
+def _chromium_present() -> bool:
+    """Best-effort check that a Playwright Chromium build is installed."""
+    configured = os.getenv("PLAYWRIGHT_BROWSERS_PATH")
+    root = Path(configured) if configured else Path.home() / ".cache" / "ms-playwright"
+    try:
+        return any(entry.name.startswith("chromium") for entry in root.iterdir())
+    except OSError:
+        return False
 

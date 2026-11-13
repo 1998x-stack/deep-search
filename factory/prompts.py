@@ -38,7 +38,8 @@ Write a rigorous Chinese deep-research report using ONLY the supplied source IDs
 quoted evidence and reviewer notes. Distinguish verified-by-reviewer facts, inferences,
 hypotheses and unknowns. No invented links, dates, numbers or citations.
 Reference source IDs such as [S001] in the body whenever making consequential factual
-assertions. Search-result snippets are discovery leads, not verified facts. Include:
+assertions. Every claim you treat as supported MUST cite at least one of its own
+supporting source IDs in the body text (a claim cited nowhere fails the strict gate). Search-result snippets are discovery leads, not verified facts. Include:
 Executive Summary; Scope & Method; Evidence; Counterevidence; Limitations; Conclusions.
 If evidence is insufficient, clearly state it instead of claiming certainty.
 Do not include a source index; the runtime appends a deterministic one.
