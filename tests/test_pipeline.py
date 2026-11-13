@@ -178,6 +178,40 @@ class PipelineTests(unittest.TestCase):
             self.assertTrue(summary["partially_processed_source_ids"] or
                             summary["unprocessed_source_ids"])
 
+    def test_strict_accepts_properly_grounded_refutation_without_supported_claim(self):
+        class Search:
+            def search(self, query, *, num=5):
+                return [{"url": "https://example.org/correction", "title": "Correction",
+                         "content": "The alleged 2019 opening date was false."}]
+        class Model:
+            def ask(self, stage, system, user, *, json_mode=False):
+                if stage == "planner":
+                    return {"scope": "fictional", "queries": ["correction notice"],
+                            "hypotheses": []}
+                if stage == "evidence":
+                    return {"claims": [{"text": "The library opened in 2019",
+                        "status": "refuted",
+                        "analysis": "correction",
+                        "evidence": [{"source_id": "S001",
+                                      "quote": "2019 opening date was false",
+                                      "polarity": "contradicts"}]}]}
+                if stage == "critic":
+                    return {"stop": True, "next_queries": [], "gaps": [],
+                            "contradictions": [], "rationale": "refuted"}
+                if stage == "synthesis":
+                    return "The 2019 opening assertion was refuted [C001][S001]."
+                raise AssertionError(stage)
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = ResearchConfig(question="Refuted example", out=tmp,
+                                 provider="mock", llm="mock", fixture=str(FIXTURE),
+                                 strict=True, max_rounds=1)
+            run = run_research(cfg, search=Search(), model=Model())
+            self.assertEqual(run["status"], "completed", run["errors"])
+            check = json.loads((Path(tmp)/"citation_map.json").read_text())
+            self.assertTrue(check["valid"], check["errors"])
+            self.assertEqual(check["bindings"][0]["quote_evidence"][0]["polarity"],
+                             "contradicts")
+
     def test_missing_keys_fails_and_preserves_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = ResearchConfig(question="Any question", out=tmp)

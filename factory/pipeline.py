@@ -499,8 +499,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         report_audit["readiness"] = readiness
         report_audit["errors"].extend(readiness["errors"])
         if cfg.strict:
-            if report_audit["anchored_support_claims"] < 1:
-                report_audit["errors"].append("strict mode requires anchored supporting evidence")
+            if readiness["anchored_claims"] < 1:
+                report_audit["errors"].append(
+                    "strict mode requires status-appropriate anchored evidence")
             if not any("[S" in line for line in draft.splitlines()):
                 report_audit["errors"].append("strict mode requires body citations")
             if any(x["status"] == "failed" for x in search_log):

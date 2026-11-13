@@ -82,7 +82,8 @@ The engine validates:
    the **same** claim and correct polarity.
 4. Supported/partially supported claims require a support-polarity binding;
    refuted claims require contradiction-polarity binding; disputed claims
-   require **both**.
+   require **both**. A fully grounded refutation with only contradicting
+   evidence is allowed by Strict Mode, even without a positive supported claim.
 5. Each required claim has its correct pair in the analytical **report body**,
    not only in the appended source index.
 6. Standalone `[S001]` references do not satisfy the stricter format.
