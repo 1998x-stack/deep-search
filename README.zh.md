@@ -4,12 +4,13 @@
 
 ## 代码分类
 
-- `factory/`：配置、DeepSeek/OpenAI 模型、Google/Playwright 搜索、抓取、证据、独立 Reflection Policy 和编排。
+- `factory/`：配置、DeepSeek/OpenAI/**pi-agent `iagent`** 模型、Google/Playwright/**replay（操作者导入的真实检索清单）** 搜索、抓取、证据、独立 Reflection Policy、**loguru 运行日志** 和编排。
 - `algorithms/`：单文件可读的研究执行入口；Strict Mode。
-- `configs/`：默认预算与领域路由。
+- `configs/`：默认预算与领域路由；`configs/cases/` 存放具体案例配置。
+- `fixtures/`：带 provenance 的真实检索清单（案例用）。
 - `examples/`：可重复运行的虚构离线用例。
 - `tests/`：不消耗 API 的回归测试。
-- `runs/`：研究产物，默认忽略，不提交。
+- `runs/`：研究产物（含 `logs/`），默认忽略，不提交。
 
 ## 运行
 
@@ -22,6 +23,10 @@ python benchmarks/offline_eval.py --out runs/evals
 ~~~
 
 DeepSeek + Google 需要 `DEEPSEEK_API_KEY`、`GOOGLE_API_KEY`、`GOOGLE_CSE_ID`；OpenAI 则需 `OPENAI_API_KEY`，默认通过 Responses API 调用可配置的 `gpt-6`（是否有 API 权限需实际验证）。Playwright 搜索需另行安装浏览器，但不需要 Google CSE Key。密钥不得提交至仓库。
+
+`--llm iagent` 不硬编码任何密钥：provider、模型 ID、Base URL 与 Key 均在运行时从本地 Pi agent 配置 `~/.pi/agent/models.json` 解析（支持 `!cat <密钥文件>` 形式），也可用 `IAGENT_API_KEY` / `IAGENT_BASE_URL` / `IAGENT_MODEL` / `PI_MODELS_JSON` 覆盖。解析结果中的密钥绝不写入日志、产物或报告。
+
+每次运行都会在输出目录下写入 `logs/run.log`（人读）、`logs/run.jsonl`（机器读）与 `logs/errors.log`（仅错误），并对已注册密钥与常见凭据形态做脱敏；详见 [日志说明](docs/LOGGING.md)。
 
 ~~~bash
 python algorithms/deep_research.py --question "研究主题" \
@@ -39,7 +44,18 @@ Google Custom Search JSON API 面临 2027-01-01 迁移截止，因此搜索接�
 
 联网连接测试：设置好环境变量后显式运行 `python scripts/live_smoke.py --live`（仅检查接口形态，不检验事实准确性）。运行时能力清单写入 `capabilities.json`，自主反思逐轮轨迹写入 `reflection.json`。代码根据新增证据、查询新颖性、连续停滞与预算决定是否批准 Critic 提议。
 
-阅读 [Reflection 设计](docs/REFLECTION.md)、[设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md) 与 [运行手册](docs/OPERATIONS.md)。
+阅读 [Reflection 设计](docs/REFLECTION.md)、[设计文档](docs/ARCHITECTURE.md)、[API 契约](docs/API.md)、[总控 Prompt](prompts/master.md)、[离线评测](evals/README.md)、[日志说明](docs/LOGGING.md)、[案例：具身智能产业链](docs/CASE-EMBODIED-INTELLIGENCE.md) 与 [运行手册](docs/OPERATIONS.md)。
+
+## 检索不可用时的 replay 通道（2026-11-13）
+
+当宿主机无法使用自动化搜索时（无 Google CSE 凭据；浏览器或 RSS 引擎对本机 IP 返回词典/广告页或 0 条可解析结果；DuckDuckGo 网络不可达），**不得编造来源**。做法是：用可用工具采集真实结果，连同 provenance 写入清单文件，然后：
+
+~~~bash
+python algorithms/strict_research.py --config configs/cases/embodied-intelligence-chain.json \
+  --question "具身智能（人形机器人）产业链调查：…" --out runs/embodied-ai-chain-20261113
+~~~
+
+`--provider replay` 会拒绝 `synthetic=true` 的清单，要求 `provenance.collected_by/collected_at/collection_tool`，并在 `run.json` 标记 `discovery_mode=operator_imported`、把 provenance 写入 `discovery.json`。清单只是检索线索，证据仍必须锚定到受限抓取器取回的全文。
 
 
 

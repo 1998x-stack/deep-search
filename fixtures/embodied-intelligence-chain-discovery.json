@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0",
+  "kind": "operator_imported_discovery",
+  "topic": "具身智能（人形机器人）产业链调查",
+  "provenance": {
+    "collected_by": "pi coding agent session (deep-search factory work, 2026-11-13)",
+    "collected_at": "2026-11-13T03:20:00+08:00",
+    "collection_tool": "external keyed web-search API (agent tool), 4 queries: 上游核心零部件; 中游本体与量产; 海外供应链/市场规模; 泡沫与商业化反证",
+    "engine_note": "In-host automated providers were unusable at collection time: Bing (Playwright browser and Bing RSS) returned dictionary/advertisement pages for CJK queries from this datacenter IP, DuckDuckGo was network-unreachable, and Google CSE credentials are absent. The imported list below is real search output from an external keyed API; it is discovery-only and NOT curated for agreement with any hypothesis.",
+    "curation": "Two discovered URLs were dropped before import: robotscope.net (DNS unresolvable from this host) and idtechex.com (page returned zero extractable text). PDF-only research notes from dfcfw.com were also excluded because the bounded fetcher accepts HTML/text only.",
+    "snippet_status": "unverified discovery leads"
+  },
+  "pool": [
+    {
+      "url": "https://www.askci.com/news/chanye/20260721/090045278459564530874804.shtml",
+      "title": "2026年中国具身智能机器人产业链图谱及投资布局分析（附产业链全景图）-中商情报网",
+      "snippet": "上游核心零部件，涵盖减速器、伺服/无框力矩电机、控制器、传感器、机器人灵巧手、芯片、仿真与基础设施、执行器、丝杠、机器视觉、电池、轻量化结构件等；中游为具身智能机器人本体制造，集聚人形机器人、四足机器人等整机厂商，实现规模化量产；下游深度落地汽车制造、锂电、光伏、3C电子、智慧物流、文化娱乐、特种应急等多元场景。2025年中国减速器行业市场规模约1520亿元。",
+      "published_at": "2026-07-21",
+      "tags": "产业链 上游 中游 下游 减速器 伺服电机 传感器 灵巧手 市场规模"
+    },
+    {
+      "url": "https://finance.sina.com.cn/roll/2025-10-23/doc-infuvkux7387035.shtml",
+      "title": "10.23商业观察：机器人核心部件公司汇总（附股）_新浪财经",
+      "snippet": "机器人的三大核心系统对应三大核心部件：控制系统、伺服系统、减速器。控制器公司包括汇川技术、埃斯顿、新松机器人、华中数控、柏楚电子等；国产替代在核心部件环节持续推进。",
+      "published_at": "2025-10-24",
+      "tags": "上游 减速器 伺服电机 控制器 上市公司 国产替代"
+    },
+    {
+      "url": "https://www.apsoto.com/layout/223",
+      "title": "具身智能机器人供应链企业图谱（2026版）",
+      "snippet": "具身智能机器人供应链企业图谱（2026版）列出机器人本体、决策系统、大模型、具身智能平台、大小脑与域控制器、AI芯片、算法及软件、存储器、感知系统等环节的代表企业。",
+      "tags": "供应链 企业图谱 本体 大模型 芯片 感知"
+    },
+    {
+      "url": "https://www.fxbaogao.com/q/2507106754182719",
+      "title": "主要智能机器人核心部件供应商有哪些？按部件类型（减速器、伺服电机、传感器、控制器等）分类列出",
+      "snippet": "减速器方面绿的谐波为谐波减速器龙头，供货特斯拉擎天柱、Figure机器人；科达利、中大力德、富临精工等参与精密减速器。伺服电机与执行器方面汇川技术供货宇树机器人，鸣志电器供应空心杯电机，禾川科技供应无框力矩电机。传感器方面柯力传感供应六维力传感器，奥比中光供应3D视觉传感器。",
+      "published_at": "2025-07-10",
+      "tags": "上游 减速器 谐波减速器 伺服电机 无框力矩电机 六维力传感器 3D视觉 供应商"
+    },
+    {
+      "url": "https://www.eet-china.com/mp/a537676.html",
+      "title": "2026人形机器人行业深度：产业现状、行业挑战、产业链及相关公司深度梳理",
+      "snippet": "产业链拆解：硬件价值占比接近七成。国产厂商在出货量、供应链、专利数量占优，但行业远未到大规模商业化，最大矛盾集中在大脑AI模型与本体硬件的深度耦合；零部件、数据、整机系统集成、标准规范构成四大现实卡点。超过六成设备流向科研教育、文娱商演。",
+      "published_at": "2026-11-08",
+      "tags": "产业链 上游 硬件价值占比 国产替代 卡点 出货结构 反证"
+    },
+    {
+      "url": "https://chinaindustryintel.com/china-humanoid-robot-supply-chain-15-core-modules-worth-3-2b-by-2026/",
+      "title": "China Humanoid Robot Supply Chain: 15 Core Modules Worth $3.2B by 2026",
+      "snippet": "China's humanoid robot transmission sector is dominated by servo motors, precision reducers, and harmonic drives. In 2026 the domestic market for these components is estimated at $1.2 billion. Inovance Technology captured 18% of the domestic servo market and Leaderdrive a 12% share in harmonic drives.",
+      "published_at": "2026-07-11",
+      "tags": "上游 传动 伺服电机 谐波减速器 市场份额 Inovance Leaderdrive"
+    },
+    {
+      "url": "https://www.mckinsey.com/industries/industrials/our-insights/turning-humanoid-supply-chain-constraints-into-billion-dollar-wins",
+      "title": "Scaling the humanoid robotics supply chain into billion-dollar wins | McKinsey",
+      "snippet": "For many of the most critical and costly humanoid components, the supplier ecosystem is still at the early stage for large-scale production, creating a significant opportunity for scale build-out; how the supply chain matures will shape the pace and economics of humanoid deployment.",
+      "published_at": "2026-04-14",
+      "tags": "供应链 零部件 瓶颈 量产规模 海外研究"
+    },
+    {
+      "url": "https://humanoidrobotsupplychain.com/",
+      "title": "Humanoid Robot Supply Chain Report 2026–2027",
+      "snippet": "This strategic guide for suppliers maps every component market — actuators, sensors, batteries, compute — the regions and rules that shape them, and the consolidation window that closes in 2027–28.",
+      "tags": "供应链 执行器 传感器 电池 算力 市场规模"
+    },
+    {
+      "url": "https://www.inframosaic.com/report/index.html",
+      "title": "State of Humanoids 2026 · InfraMosaic",
+      "snippet": "A $5-trillion industry is being built one actuator at a time — and three-quarters of the supply chain runs through one country. Every humanoid resolves into three layers: the Brain (AI models, compute, vision, simulation) where the West and Taiwan lead, and the Body (motors, gears, screws, sensors, magnets, batteries) where China has built an almost unassailable position.",
+      "tags": "产业链 三层结构 大脑 本体 中国主导 市场规模"
+    },
+    {
+      "url": "https://www.bordier.com/beyond-the-robot/",
+      "title": "Beyond the Robot | Bordier",
+      "snippet": "Humanoids are a powerful new growth engine for industrial companies that largely missed AI's software-led first wave. Before robots can be deployed at scale, developers must build and train them, creating demand for AI compute, accelerators, memory, networking, storage, simulation software and edge processors.",
+      "published_at": "2026-10-16",
+      "tags": "产业链 算力 训练 投资 需求拉动"
+    },
+    {
+      "url": "https://finance.sina.com.cn/roll/2026-10-21/doc-inivxvut5485036.shtml",
+      "title": "国海研究 | 人形机器人2026年前三季度复盘",
+      "snippet": "复盘2026年前三季度人形机器人行业情况，包括海外本体厂（特斯拉、Figure AI、1X）和国内各本体厂的技术、产品、产能和出货等进展，并整理当前各厂商具身大模型的布局情况；2026年国内本体厂的产能规划大多在万台级。",
+      "published_at": "2026-10-21",
+      "tags": "中游 本体 产能 出货 具身大模型 复盘"
+    },
+    {
+      "url": "https://www.trendforce.cn/presscenter/news/20260409-13006.html",
+      "title": "TrendForce集邦咨询: 预估2026年中国人形机器人市场产量将年增94%",
+      "snippet": "2026下半年全球人形机器人产业将进入商业化的关键期，中国厂商商用化目标与场景逐渐明确，预估激励2026全年中国人形机器人市场产量年增94%。宇树科技、智元机器人凭借盈利能力与量产进度，预估两者合计将囊括近80%的出货占比。",
+      "published_at": "2026-04-09",
+      "tags": "中游 出货 量产 集中度 宇树 智元 预测"
+    },
+    {
+      "url": "https://jjckb.xinhuanet.com/20261012/5ac26ce016d344cb97722c826dae8fb1/c.html",
+      "title": "量产提速　人形机器人迎商业化大考-经济参考网 新华社",
+      "snippet": "上纬新材CEO田华称启元机器人引入汽车工业制造节拍与质量管理方式，每2.5分钟下线一台机器人，执行IATF16949标准；如何保证数万台机器人的批次一致性，真正挑战在于供应链和制造标准，具身智能产业化是短板都不能少的复杂工程。9月12日优必选在柳州启动万台级工业人形机器人超级智造工厂。",
+      "published_at": "2026-10-12",
+      "tags": "中游 量产 一致性 供应链 制造标准 优必选 上纬新材"
+    },
+    {
+      "url": "https://www.cnfin.com/gs-lb/detail/20261106/4492027_1.html",
+      "title": "【新华财经调查】人形机器人超六成尚处“演示”场景 大规模商用面临三道坎",
+      "snippet": "中国信通院《具身智能发展报告(2026年)》显示2026年上半年全球人形机器人出货量超2.2万台，同比增长近300%；但真正进入智能制造、仓储物流场景的仅约18%，超六成设备仍停留在商演、科研教学场景；2026年下半年部分裸机日租金跌破千元。",
+      "published_at": "2026-11-06",
+      "tags": "下游 应用场景 出货结构 租赁价格 商业化 反证"
+    },
+    {
+      "url": "https://www.news.cn/tech/20260907/91eff00212a84c0bba1ca6894b460a61/c.html",
+      "title": "新华网科技观察丨走向实用，具身智能机器人还要闯几关？",
+      "snippet": "今年中国人形机器人累计交付到客户的整机约1.5万台，市场规模20余亿元，而传统工业机器人出口额早已突破百亿元。三道坎：大脑不够可靠；身体硬件拖后腿；大规模生产不易。王兴兴称具身智能的“ChatGPT时刻”快则2-3年，慢则5-10年。",
+      "published_at": "2026-09-07",
+      "tags": "下游 市场规模 三道坎 可靠性 硬件性能 量产 反证"
+    },
+    {
+      "url": "http://i4.ce.cn/ce/macro/more/202608/t20260812_3143503.shtml",
+      "title": "上市公司积极布局智能机器人_中国经济网",
+      "snippet": "天津市工信局等三部门印发《天津市智能机器人产业创新发展行动方案（2026—2028年）》，提出到2028年底全市智能机器人产业核心产值突破200亿元；国内在减速器、伺服电机、控制器等核心零部件领域已取得显著突破，产业正从“能用”向“好用”转变。",
+      "published_at": "2026-08-12",
+      "tags": "政策 地方政府 产值目标 上游 零部件 上市公司"
+    },
+    {
+      "url": "https://www.yicai.com/news/103334422.html",
+      "title": "展台能跳舞，工厂拧不准，具身智能的“大脑”还在补课",
+      "snippet": "机器人真正能做的事与对外展示的能力之间仍横亘巨大鸿沟，根源在于负责理解世界、规划任务、预判动作的具身智能“大脑”仍处于极早期；一台通用机器人可拆解为大脑（VLA、世界模型、规划）、全身协同、手部操作三层，目前大脑能发出正确指令但硬件底层执行层接不住。",
+      "published_at": "2026-08-26",
+      "tags": "反证 具身大模型 VLA 世界模型 灵巧手 力控 技术瓶颈"
+    },
+    {
+      "url": "https://www.21jingji.com/article/20260923/herald/84859c3ae90b54187e7d46b4d7785f83.html",
+      "title": "具身智能的转机和出清，哪个先来？ - 21经济网",
+      "snippet": "机器人厂商先与地方政府合资成立数采公司，财务上政府出大头，然后合资公司向参与出资的机器人厂商采购本体和硬件，再把数据卖给需要训练模型的具身公司；这个循环里没有终端客户为机器人买单。具身智能模型训练需要千万小时级真实物理交互数据，目前全球高质量数据仅约50万小时，缺口超过95%。",
+      "published_at": "2026-09-23",
+      "tags": "反证 数据 数采中心 地方国资 商业闭环 循环交易"
+    },
+    {
+      "url": "https://www.mrjjxw.com/articles/2026-11-05/4639985.html",
+      "title": "直面“最美的泡沫”与“最好的时代”：具身智能资本降温，灵巧手规模化要过投资回报率与标准两道关",
+      "snippet": "北京航空航天大学具身智能研究院院长魏洪兴在现场直言，过去两年具身智能行业“发展过快，积累了不少泡沫”；凌云光高级副总裁杨艺则表示具身智能是面向未来的赛道，“即便存在泡沫，这也是最美丽的泡沫”。灵巧手要实现规模化落地仍需跨过投资回报率与产业链统一标准两道关卡。",
+      "published_at": "2026-11-05",
+      "tags": "反证 泡沫 资本降温 灵巧手 ROI 标准"
+    },
+    {
+      "url": "https://www.tmtpost.com/8138902.html",
+      "title": "具身智能有没有泡沫，投资人也有分歧｜外滩大会-钛媒体",
+      "snippet": "机器人展示出来的动作，究竟有多少来自智能水平提升，又有多少依赖特定条件下的工程设计，是外界评价行业进展的一道难题；投资人对商业化优先级以及资金投多了还是投少了给出不同答案。",
+      "published_at": "2026-09-14",
+      "tags": "反证 泡沫 投资分歧 演示 泛化能力 数据"
+    },
+    {
+      "url": "https://finance.sina.com.cn/stock/t/2026-09-11/doc-inirnaix2284170.shtml",
+      "title": "具身智能的三大追问：数据、泡沫与落地_新浪财经",
+      "snippet": "许华哲直言行业对具身智能数据规模的追求被高估，最近几个模型的表现并没有证明数字越高效果一定越好，一小时数据在市面上卖几百元，一百万小时可能就是几个亿；韩铮认为仿真数据居于核心地位但存在边界。",
+      "published_at": "2026-09-11",
+      "tags": "反证 数据规模 质量 仿真数据 数据成本 技术路线"
+    },
+    {
+      "url": "http://m.eeo.com.cn/2026/0121/781598.shtml",
+      "title": "曲道奎：将具身智能炒作成人形机器人，就是在制造行业泡沫-经济观察网",
+      "snippet": "国务院发展研究中心《中国发展报告2025》显示中国具身智能产业发展处于起步期市场，规模有望在2030年达到4000亿元、2035年突破万亿元；“十五五”规划建议明确提出前瞻布局未来产业。曲道奎认为将具身智能简化成人形机器人并娱乐化解读可能催生行业泡沫，未来三到五年技术尚无法安全可靠满足为老人翻身这类基础护理需求。",
+      "published_at": "2026-01-21",
+      "tags": "反证 泡沫 政策 规划 市场规模预测 护理场景"
+    },
+    {
+      "url": "https://m.huxiu.com/article/4888736.html",
+      "title": "具身智能等不来自己的“ChatGPT时刻”-虎嗅网",
+      "snippet": "具身智能的能力、成本和扩散三条曲线分别卡在不同节点：能力卡在跨场景泛化与安全执行关，固定基准普遍逼近97%-99%，换场景后指标明显下滑（RoboCasa成功率53.9%、VLABench得分47.4）；成本卡在投入转化率关，全行业融资近千亿，快于研发投入和验证转化速度；扩散卡在生产级场景占比不足两成。",
+      "published_at": "2026-09-04",
+      "tags": "反证 泛化 基准指标 融资 验证转化 扩散 商业化"
+    },
+    {
+      "url": "https://m.21jingji.com/article/20260615/herald/b84aaab87641b38b99e327ee738b969b_zaker.html",
+      "title": "具身智能“虚与实”：融资“抢身位”，CEO们还不急谈商业化",
+      "snippet": "2026年第一季度具身智能赛道披露融资超50起，累计融资额突破200亿元，同比增长近60%，创历史新高；企业创始人在圆桌讨论中很少谈论规模化、商业化，提及更多的是砸钱抢身位、数据瓶颈与技术发展的早期阶段。",
+      "published_at": "2026-06-15",
+      "tags": "反证 融资 估值 商业化优先级 数据瓶颈"
+    },
+    {
+      "url": "https://www.zj-humanoid.com/",
+      "title": "浙江人形机器人创新中心／浙江人形机器人股份有限公司",
+      "snippet": "浙江人形机器人股份有限公司一家具备人形机器人全域自研能力的科技公司。注册成立于2023年12月21日。在浙江省、宁波市、海曙区政府单位的指导与支持下，由熊蓉教授及团队联合多家知识机构组建。",
+      "tags": "中游 本体 厂商 全域自研 产品线 长三角"
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.09246",
+      "title": "OpenVLA: An Open-Source Vision-Language-Action Model",
+      "snippet": "Abstract: Large policies pretrained on a combination of Internet-scale vision-language data and diverse robot demonstrations have the potential to change how we teach robots new skills: rather than training new behaviors from scratch, we can fine-tune such vision-language-action (VLA) models to obtain robust, generalizable policies for visuomotor control.",
+      "published_at": "2024-06-13",
+      "tags": "学术 VLA 开源模型 操作任务 微调"
+    },
+    {
+      "url": "https://spectrum.ieee.org/humanoid-robots",
+      "title": "Humanoid Robots Are Getting to Work - IEEE Spectrum",
+      "snippet": "Humanoid Robots Are Getting to Work IEEE.org | IEEE Xplore IEEE Standards IEEE Job Site (page lead text captured at collection time; full article retrieved by the bounded fetcher)",
+      "tags": "海外 工程实现 部署 可靠性与安全"
+    },
+    {
+      "url": "https://zh.wikipedia.org/wiki/%E5%85%B7%E8%BA%AB%E6%99%BA%E8%83%BD",
+      "title": "具身智能 - 维基百科",
+      "snippet": "具身智能 - 维基百科，自由的百科全书（页面首行文本；定义段落由管线在全文检索阶段获取）",
+      "tags": "定义 概念 学术 感知决策行动"
+    }
+  ]
+}
