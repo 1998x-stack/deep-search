@@ -5,7 +5,8 @@ results are discovery leads, NOT quoted full-text evidence.
 """
 from __future__ import annotations
 
-from urllib.parse import urlencode, urlsplit
+import ipaddress
+from urllib.parse import parse_qs, unquote, urlencode, urljoin, urlsplit
 
 from .config import ResearchConfig
 from .search import SearchError
@@ -35,14 +36,33 @@ def allowed_host(host: str, domains: tuple[str, ...]) -> bool:
     return any(host == domain or host.endswith("." + domain) for domain in domains)
 
 
+def unwrap_search_link(url: str, engine: str) -> str:
+    """Decode explicit DuckDuckGo outbound target without navigating a redirect."""
+    if engine == "duckduckgo":
+        p = urlsplit(url)
+        if p.hostname and allowed_host(p.hostname.lower(), ("duckduckgo.com",)):
+            destinations = parse_qs(p.query).get("uddg", [])
+            if p.path.startswith("/l/") and destinations:
+                return destinations[0]
+    return url
+
+
 def is_source_link(url: str, search_hosts: tuple[str, ...]) -> bool:
     try:
         p = urlsplit(url)
     except ValueError:
         return False
-    return (p.scheme in {"http", "https"} and bool(p.hostname)
-            and not p.username and not p.password
-            and not allowed_host(p.hostname.lower(), search_hosts))
+    if (p.scheme not in {"http", "https"} or not p.hostname
+            or p.username or p.password or allowed_host(p.hostname.lower(), search_hosts)):
+        return False
+    host = p.hostname.lower()
+    if host in {"localhost", "localhost.localdomain"} or host.endswith((".local", ".internal")):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return True
+    return ip.is_global
 
 
 class PlaywrightSearch:
@@ -103,7 +123,10 @@ class PlaywrightSearch:
                 if response is None or response.status >= 400:
                     raise SearchError("browser search returned a non-success HTTP status")
                 text = page.content().lower()[:150000]
-                if any(word in text for word in ("verify you are human", "unusual traffic", "captcha")):
+                if any(word in text for word in (
+                    "verify you are human", "unusual traffic",
+                    "<title>captcha", 'id="captcha"',
+                )):
                     raise SearchError("browser search blocked by verification challenge")
                 cards = page.locator(settings["cards"])
                 results = []
@@ -115,6 +138,11 @@ class PlaywrightSearch:
                         continue
                     anchor = links.first
                     href = anchor.get_attribute("href") or ""
+                    if href.startswith("//"):
+                        href = "https:" + href
+                    elif href.startswith("/"):
+                        href = urljoin(settings["url"], href)
+                    href = unwrap_search_link(href, self.cfg.browser_engine)
                     if not is_source_link(href, hosts) or href in seen:
                         continue
                     title = anchor.inner_text(timeout=3000).strip()

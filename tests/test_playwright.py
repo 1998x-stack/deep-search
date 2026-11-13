@@ -1,7 +1,7 @@
 import unittest
 
 from factory.config import ResearchConfig
-from factory.playwright_search import PlaywrightSearch, allowed_host, is_source_link
+from factory.playwright_search import PlaywrightSearch, allowed_host, is_source_link, unwrap_search_link
 from factory.search import SearchError
 
 
@@ -119,6 +119,12 @@ class BrowserTests(unittest.TestCase):
         self.assertFalse(is_source_link("https://admin:pass@example.com", ("bing.com",)))
         self.assertTrue(is_source_link("https://example.org/ok", ("bing.com",)))
         self.assertFalse(allowed_host("evilbing.com", ("bing.com",)))
+
+    def test_duckduckgo_redirect_target_unwrapped_without_navigation(self):
+        link = "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fpaper"
+        self.assertEqual(unwrap_search_link(link, "duckduckgo"), "https://example.org/paper")
+        self.assertFalse(is_source_link("http://127.0.0.1/secret", ("bing.com",)))
+        self.assertFalse(is_source_link("http://localhost.local/secret", ("bing.com",)))
 
     def test_browser_search_hard_limit(self):
         cfg = ResearchConfig(question="test", provider="playwright")
