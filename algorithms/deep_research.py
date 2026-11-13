@@ -38,11 +38,17 @@ def parser_for(argv: list[str] | None = None):
     p.add_argument("--config", default=preliminary_args.config, help="JSON default configuration")
     p.add_argument("--question", required=True, help="Research question")
     p.add_argument("--out", default="runs/latest", help="Local artifact directory")
-    p.add_argument("--provider", choices=["google", "mock"], default=defaults["search_provider"])
-    p.add_argument("--llm", choices=["deepseek", "mock"], default=defaults["llm_provider"])
+    p.add_argument("--provider", choices=["google", "playwright", "mock"], default=defaults["search_provider"])
+    p.add_argument("--llm", choices=["deepseek", "openai", "mock"], default=defaults["llm_provider"])
     p.add_argument("--depth", choices=["quick", "standard", "deep"], default=defaults["depth"])
-    p.add_argument("--model", default=defaults["model"])
-    p.add_argument("--model-base-url", default="https://api.deepseek.com")
+    p.add_argument("--model", default=None, help="Model name, defaults by provider")
+    p.add_argument("--model-base-url", default=None, help="HTTPS provider API base")
+    p.add_argument("--browser-engine", choices=["bing", "duckduckgo"],
+                   default=defaults.get("browser_engine", "bing"))
+    p.add_argument("--reflection-patience", type=int,
+                   default=defaults.get("reflection_patience", 2))
+    p.add_argument("--reflection-similarity-threshold", type=float,
+                   default=defaults.get("reflection_similarity_threshold", .92))
     # None means derive maximum rounds from depth; CLI overrides config.
     p.add_argument("--max-rounds", type=int, default=defaults.get("max_rounds"))
     p.add_argument("--max-queries", type=int, default=defaults["max_queries"])

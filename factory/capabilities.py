@@ -5,6 +5,7 @@ These checks express configured/available support, not remote API health.
 from __future__ import annotations
 import json
 import os
+from importlib.util import find_spec
 from pathlib import Path
 
 from .config import ResearchConfig
@@ -22,13 +23,18 @@ def resolve_capabilities(cfg: ResearchConfig) -> list[dict]:
         name = spec["name"]
         if name == "llm_reasoning":
             provider = cfg.llm
-            enabled = cfg.llm == "mock" or bool(os.getenv("DEEPSEEK_API_KEY"))
+            key = "OPENAI_API_KEY" if cfg.llm == "openai" else "DEEPSEEK_API_KEY"
+            enabled = cfg.llm == "mock" or bool(os.getenv(key))
             status = "configured" if enabled else "missing_credentials"
         elif name == "broad_web_search":
             provider = cfg.provider
-            enabled = cfg.provider == "mock" or (
-                bool(os.getenv("GOOGLE_API_KEY")) and bool(os.getenv("GOOGLE_CSE_ID")))
-            status = "configured" if enabled else "missing_credentials"
+            if cfg.provider == "playwright":
+                enabled = find_spec("playwright") is not None
+                status = "configured" if enabled else "missing_dependency"
+            else:
+                enabled = cfg.provider == "mock" or (
+                    bool(os.getenv("GOOGLE_API_KEY")) and bool(os.getenv("GOOGLE_CSE_ID")))
+                status = "configured" if enabled else "missing_credentials"
         elif name == "full_text_fetch":
             provider = "bounded_html_fetcher"
             enabled = bool(cfg.fetch_pages)
