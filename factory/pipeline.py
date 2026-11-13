@@ -12,6 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import ResearchConfig, classify_intent
+from .citation_audit import audit_claim_citations
+from .coverage import (batches_for_evidence, constrain_evidence_to_batch,
+                       mark_processed, prepare_coverage, summarize_coverage)
 from .capabilities import resolve_capabilities
 from .evidence import add_sources, assess_research_readiness, audit, normalize_claims
 from .fetch import FetchError, fetch_text
@@ -132,6 +135,7 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
         "schema_version": "1.0", "question": cfg.question, "run_id": run_id,
         "started_at": started_at, "status": "running", "stages": [],
         "queries_executed": 0, "rounds": 0, "fetches_attempted": 0,
+        "evidence_calls": 0,
         "errors": [], "artifacts": [], "stop_reason": "not_started",
         "logging": logging_state, "llm_usage": {},
     }
@@ -141,6 +145,8 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
     search_log: list[dict] = []
     critique_log: list[dict] = []
     reflection_log: list[dict] = []
+    coverage: dict = {}
+    citation_map: dict = {"valid": False, "errors": ["report not audited"], "bindings": []}
     stalled_rounds = 0
     plan = {}
     report = ""
@@ -164,6 +170,11 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             manifest["discovery_mode"] = "operator_imported"
             manifest["discovery_provenance"] = dict(getattr(web, "provenance", {}) or {})
             _save(root, "discovery.json", manifest["discovery_provenance"])
+            manifest["discovery_scope"] = "fixed_corpus"
+            manifest["discovery_pool_total"] = getattr(web, "pool_total", None)
+        else:
+            manifest["discovery_scope"] = (
+                "synthetic_fixture" if cfg.provider == "mock" else "open_world")
         manifest["stages"].append("providers_initialized")
         intent = classify_intent(cfg.question)
         logger.bind(stage="init").info(
@@ -300,36 +311,65 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
                 manifest["stop_reason"] = "no_sources"
                 break
 
-            # Phase 3: Ask for evidence, but enforce provenance in pure Python.
-            evidence_input = {"question": cfg.question, "round": round_number,
-                              "sources": _context(
-                                  sources, max_total_chars=cfg.max_context_chars // 2),
-                              "previous_claims": claims}
-            with stage("evidence", round=round_number):
-                before_usage = _usage_snapshot(llm)
-                raw_evidence = llm.ask(
-                    "evidence", EVIDENCE,
-                    _model_payload(evidence_input, limit=cfg.max_context_chars,
-                                   stage="evidence", instructions=EVIDENCE),
-                    json_mode=True)
-                logger.bind(stage="evidence", round=round_number).debug(
-                    "evidence usage={}", _usage_delta(llm, before_usage))
-            claims, evidence_deviations = normalize_claims(raw_evidence, sources, claims)
+            # Phase 3: Process every retrieved text segment with exact offsets.
+            # A retrieved page is not counted as reviewed merely because it exists.
+            segment_size = min(
+                cfg.evidence_segment_chars,
+                max(512, (cfg.max_context_chars - len(EVIDENCE)
+                          - len(cfg.question) - 3000) // 4),
+            )
+            coverage, pending_chunks = prepare_coverage(
+                sources, coverage, segment_size=segment_size)
+            evidence_deviations: list[str] = []
+            batches = batches_for_evidence(
+                pending_chunks, question=cfg.question, round_number=round_number,
+                max_input_chars=cfg.max_context_chars, instructions=EVIDENCE)
+            remaining_evidence_calls = cfg.max_evidence_calls - manifest["evidence_calls"]
+            for batch_number, batch in enumerate(batches[:max(0, remaining_evidence_calls)], 1):
+                evidence_input = {"question": cfg.question, "round": round_number,
+                                  "sources": batch}
+                with stage("evidence", round=round_number, batch=batch_number):
+                    before_usage = _usage_snapshot(llm)
+                    raw_evidence = llm.ask(
+                        "evidence", EVIDENCE,
+                        _model_payload(evidence_input, limit=cfg.max_context_chars,
+                                       stage="evidence", instructions=EVIDENCE),
+                        json_mode=True)
+                    manifest["evidence_calls"] += 1
+                    restricted, dropped = constrain_evidence_to_batch(raw_evidence, batch)
+                    if dropped:
+                        evidence_deviations.append(
+                            f"{dropped} quote bindings rejected: absent from submitted segments")
+                    claims, new_deviations = normalize_claims(restricted, sources, claims)
+                    evidence_deviations.extend(new_deviations)
+                    # Mark processed only AFTER the model returned a structurally
+                    # valid claim list and the local provenance normalizer succeeded.
+                    mark_processed(coverage, batch)
+                    logger.bind(stage="evidence", round=round_number).info(
+                        "batch={} submitted_segments={} evidence_calls={} new_claims={} usage={}",
+                        batch_number, len(batch), manifest["evidence_calls"],
+                        len(claims), _usage_delta(llm, before_usage))
+                _save(root, "coverage.json", coverage)
+            coverage_summary = summarize_coverage(coverage)
+            _save(root, "coverage.json",
+                  {"sources": coverage, "summary": coverage_summary})
             deviations.extend(evidence_deviations)
             _save(root, "ledger.json", {"sources": sources, "claims": claims})
             manifest["stages"].append("evidence_round_" + str(round_number))
+            manifest["model_processed_sources"] = coverage_summary["model_processed_source_count"]
             logger.bind(stage="evidence", round=round_number).info(
-                "ledger round={} claims={} statuses={} anchored_support={} deviations={}",
-                round_number, len(claims),
-                {s: sum(1 for c in claims if c["status"] == s)
-                 for s in ("supported", "partially_supported", "disputed", "refuted", "unverified")
-                 if any(c["status"] == s for c in claims)},
-                sum(1 for c in claims for e in c.get("evidence", [])
-                    if e.get("anchored") and e.get("polarity") == "supports"),
-                len(evidence_deviations))
-            for item in evidence_deviations:
-                logger.bind(stage="evidence", round=round_number).debug("evidence deviation: {}", item)
-
+                "coverage round={} reviewed_sources={} submitted_segments={}/{} "
+                "pending_sources={} evidence_calls={}/{}",
+                round_number, coverage_summary["model_processed_source_count"],
+                coverage_summary["processed_segments"], coverage_summary["total_segments"],
+                len(coverage_summary["partially_processed_source_ids"]) +
+                len(coverage_summary["unprocessed_source_ids"]),
+                manifest["evidence_calls"], cfg.max_evidence_calls)
+            if len(batches) > remaining_evidence_calls:
+                manifest["stop_reason"] = "evidence_call_budget_exhausted"
+                deviations.append("retrieved source segments remain unprocessed "
+                                  "after reaching max_evidence_calls")
+                break
 
             # Phase 4–5: measure real progress, then ask Critic for proposals.
             remaining = cfg.max_queries - manifest["queries_executed"]
@@ -414,6 +454,25 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
 
         # Phase 7: Structural audit; strict requires a minimally supported cited claim.
         report_audit = audit({"sources": sources, "claims": claims}, report)
+        citation_map = audit_claim_citations(
+            {"sources": sources, "claims": claims}, report)
+        _save(root, "citation_map.json", citation_map)
+        report_audit["claim_citation_bindings"] = {
+            "valid": citation_map["valid"],
+            "binding_count": len(citation_map["bindings"]),
+            "unbound_source_citations": len(citation_map["orphaned_source_citations"]),
+            "semantic_entailment_verified": False,
+        }
+        if cfg.strict:
+            report_audit["errors"].extend(citation_map["errors"])
+        else:
+            report_audit["warnings"].extend(citation_map["errors"])
+        coverage_summary = summarize_coverage(coverage)
+        report_audit["model_coverage"] = coverage_summary
+        if not coverage_summary["all_retrieved_text_processed"]:
+            report_audit["errors"].append(
+                "retrieved full text contains unprocessed segments; "
+                "report cannot be certified complete")
         readiness = assess_research_readiness(
             {"sources": sources, "claims": claims}, report)
         report_audit["readiness"] = readiness
@@ -461,7 +520,9 @@ def run_research(cfg: ResearchConfig, *, model=None, search=None, fetcher=None) 
             ("plan.json", plan), ("search.json", search_log),
             ("sources.json", sources), ("ledger.json", {"sources": sources, "claims": claims}),
             ("critic.json", critique_log), ("reflection.json", reflection_log),
-            ("audit.json", report_audit),
+            ("coverage.json", {"sources": coverage,
+                               "summary": summarize_coverage(coverage)}),
+            ("citation_map.json", citation_map), ("audit.json", report_audit),
             ("deviations.json", {"deviations": deviations}),
         ):
             _save(root, filename, value)
