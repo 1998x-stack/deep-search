@@ -51,7 +51,7 @@ flowchart TD
 Each round computes:
 - `sources_total`, `new_sources`, `full_text_sources`;
 - `anchored_support_claims`, `unverified_claims`, `disputed_claims`;
-- `progress_delta` = new sources OR newly anchored support OR newly fetched full text;
+- `progress_delta` = newly anchored support OR newly fetched full text; source count is logged separately because links/snippets do not establish material progress.
 - `consecutive_stalled_rounds` (never trust model-declared progress alone);
 - `query_novelty` against all attempted and pending queries (normalized case/whitespace and fuzzy similarity);
 - `remaining_queries`, `remaining_rounds` and `remaining_source_capacity`;
